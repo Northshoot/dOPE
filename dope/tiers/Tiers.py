@@ -2,6 +2,7 @@ __author__ = 'WDaviau'
 from comm import Communicator
 from DataGenerator import DataGenerator
 from DataStructureModel import DataStructureModel
+from cryptography.fernet import Fernet
 
 class Tier(object):
 	'''
@@ -28,23 +29,31 @@ class Sensor(Tier):
     def __init__(self):
         super('Sensor',Communicator())
         self.data_gen = DataGenerator()
-        # initialize cryptographic keys
-
-    def newData(self):
-        return self.data_gen.new()
+        self.__sk = Fernet.generate_key()
 
     def encrypt(self,plaintxt):
-        pass
+        f = Fernet(self.__sk)
+        return f.encrypt(plaintxt)
 
     def decrypt(self,cipher):
-        pass
+        f = Fernet(__sk)
+        return f.decrypt(cipher)
+
+    def generate_send_data(self):
+        # Note data is simply dropped if the gateway channel is busy
+        plaintxt = self.data_gen.new()
+        cipher = encrypt(plaintxt)
+        self.communicator.send(cipher,'insert')
+
 
 class Gateway(Tier):
 	'''
 	IoT Gateway Class
 	'''
     def __init__(self):
-    	super('Gateway',Communicator(),Communicator)
+    	super('Gateway',Communicator(),Communicator())
+
+
       
 
 class Server(Tier):
@@ -53,5 +62,5 @@ class Server(Tier):
 	'''
     def __init__(self):
     	super('Server',Communicator())
-    	self.mOPE_struct = DataStructureModel
+    	self.mOPE_struct = DataStructureModel()
 

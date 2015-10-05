@@ -5,9 +5,9 @@ class Packet(object):
     '''
     packet object
     '''
+    def __init__(self,data,call_type):
+        self.call_type = call_type
+        self.data = data
 
-    def __init__(self):
-        self.size = 20 #size in bytes
-        self.header = ''
-        self.data = ''
+
 

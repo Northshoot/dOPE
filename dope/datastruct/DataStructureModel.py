@@ -11,5 +11,16 @@ class DatraStructureModel(object):
     def insert(self):
         pass
 
-    def get(self):
+    def search(self):
         pass
+
+
+class mOPE_encoding(object):
+	'''
+	Parent class providing interface to all datastructure encodings
+	'''
+	def __init__(self,encd_list):
+		self.encd_list = encd_list
+
+	def cmp(self,other_encoding):
+		pass
