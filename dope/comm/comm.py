@@ -1,5 +1,4 @@
 __author__ = 'lauril'
-
 from packet import Packet
 
 
@@ -19,21 +18,19 @@ class Communicator(object):
 
 	def send(self, data, call_type):
 		packet = Packet(data,call_type)
-		if self.transmitted != None:
-			print("Communication channel is busy")
+		if self.sent != None:
 			return
-		self.transmitted = packet
+		self.sent = packet
 		self.connected_comm.received = packet
 		return
 
 	def read(self):
 		if self.received == None:
-			print("Communication channel is empty")
 			return None
 		else:
 			packet = self.received
 			self.received = None
-			self.connected_comm.transmitted = None
+			self.connected_comm.sent = None
 			return packet
 
 

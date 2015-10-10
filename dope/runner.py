@@ -1,5 +1,7 @@
 __author__ = 'lauril'
-from mope import mOPE_baseline
+#from mope import mOPE_baseline
+from mope.mope import mOPE_baseline
+import sys
 
 def run():
     # Number of simulation steps

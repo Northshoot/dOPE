@@ -7,13 +7,20 @@ class DatraStructureModel(object):
     def __init__(self):
         pass
 
-
-    def insert(self):
+    def insert(self,bst,val):
         pass
 
-    def search(self):
+    def search(self,bst,val):
         pass
 
+    def linear_search(self,bst,val):
+    	pass
+
+    def get_encoding(self,bst,val):
+    	pass
+
+    def traverse_insert(self,bst,encoding,val):
+    	pass
 
 class mOPE_encoding(object):
 	'''

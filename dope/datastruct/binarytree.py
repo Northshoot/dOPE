@@ -75,7 +75,48 @@ def linear_search(bst,val):
 	else:
 		return False
 
-# return the mOPE encoding as a list of 1s and 0s
-# return None if there is no encoding
+# return the (enc,found). e is the mOPE encoding as a list of 1s and 0s
+# this is None if there is no encoding.  Found is true iff val in bst
 def get_encoding(bst,val):
+	if bst == None:
+		return (None,False)
+	elif bst.data == val:
+		return ([],True)
+	else:
+		(l_enc,l_found) = get_encoding(bst.l,val)
+		(r_enc,r_found) = get_encoding(bst.r,val)
+		if l_found:
+			return ([0] + l_enc,True)
+		elif r_found:
+			return ([1] + r_enc,True)
+		else:
+			return (None, False)
+
+# Provided an encoding return the value of the data at this location
+# if there is no data in this position, or the value equals the data,
+# put val here and return None. Also return the updated tree
+def traverse_insert(bst,encoding,val):
+	if encoding == []:
+		if bst == None:
+			return(None,BSTree(val))
+		else:
+			if val == bst.data:
+				# Found the value
+				return (None,bst)
+			else:
+				return (bst.data, bst)
+	else:
+		if bst == None:
+			raise ValueError("Encoding points beyond this tree")
+		elif encoding[0]==0: 
+			# search left branch
+			(data,new_l) = traverse_insert(bst.l,encoding[1:],val)
+			bst.l = new_l
+			return (data,bst)
+		else:
+			# search the right branch
+			(data,new_r) = traverse_insert(bst.r,encoding[1:],val)
+			bst.r = new_r
+			return (data,bst)
+
 
