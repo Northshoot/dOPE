@@ -1,5 +1,5 @@
 __author__ = 'lauril'
-from . import Packet
+from .packet import Packet
 
 
 class Communicator(object):
