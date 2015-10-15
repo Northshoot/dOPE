@@ -9,7 +9,7 @@ class DataGenerator(object):
     data generator class
     '''
 
-    def __init__(self, distribution='random', bounds =[-100, 100], datatype=int):
+    def __init__(self, distribution='random', bounds =[-100, 100], datatype=0):
         self.distribution = distribution
         self.bounds = bounds
         self.data_type = datatype

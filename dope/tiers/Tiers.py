@@ -122,7 +122,7 @@ class Server(Tier):
                 return
             else:
                 ################# For debugging print all data being inserted
-                print( "Server inserting:" + str(packet.data))
+                print("Server inserting:" + str(packet.data))
                 #################
                 self.val_being_inserted = packet.data
                 self.encoding_being_inserted = []
