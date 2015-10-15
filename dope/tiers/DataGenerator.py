@@ -1,4 +1,5 @@
 __author__ = 'lauril & wdaviau'
+
 import random
 
 
@@ -21,7 +22,7 @@ class DataGenerator(object):
         elif self.distribution == 'uniform' and self.datatype == float:
             return random.uniform(self.bounds[0],self.bounds[1])
         else:
-            print "Only Random and Uniform distributions implemented"
+            print("Only Random and Uniform distributions implemented")
             return None
 
 
