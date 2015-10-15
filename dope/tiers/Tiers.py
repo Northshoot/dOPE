@@ -1,10 +1,10 @@
 __author__ = 'WDaviau'
 from comm.comm import Communicator
-from comm.packet import Packet
-from DataGenerator import DataGenerator
+from .DataGenerator import DataGenerator
 from datastruct.binarytree import BSTree, traverse_insert
-from cryptography.fernet import Fernet
+from utils import debugmethods
 
+@debugmethods
 class Tier(object):
     '''
     IoT Tier Class
@@ -22,7 +22,7 @@ class Tier(object):
             self.communicator2.connect(other_tier2.communicator)
             other_tier2.communicator.connect(self.communicator2)
 
-
+@debugmethods
 class Sensor(Tier):
     '''
     IoT Sensor Class
@@ -68,6 +68,8 @@ class Sensor(Tier):
                 raise ValueError('If the two values are equal their cipher text should be equal')
             self.communicator.send(comparison,'order_query')
 
+
+@debugmethods
 class Gateway(Tier):
     '''
     IoT Gateway Class
@@ -98,6 +100,7 @@ class Gateway(Tier):
             self.communicator.send(packet.data,'order_query')
         
 
+@debugmethods
 class Server(Tier):
     '''
     Server Class
@@ -119,7 +122,7 @@ class Server(Tier):
                 return
             else:
                 ################# For debugging print all data being inserted
-                print "Server inserting:" + str(packet.data)
+                print( "Server inserting:" + str(packet.data))
                 #################
                 self.val_being_inserted = packet.data
                 self.encoding_being_inserted = []
@@ -133,11 +136,11 @@ class Server(Tier):
                     order_query = [self.val_being_inserted,val2cmp]
                     self.communicator.send(order_query,'order_query')
         elif packet.call_type == 'order_query':
-            print "Server is getting an order query"
+            print("Server is getting an order query")
             if packet.data == 0 or packet.data == 1:
                 # The encoding of the value being insert branches left if 0 right if 1
                 self.encoding_being_inserted.append(packet.data)
-                print "encoding before: " + str(self.encoding_being_inserted)
+                print("encoding before: " + str(self.encoding_being_inserted))
                 (val2cmp, new_struct) = traverse_insert(self.mOPE_struct,
                                         self.encoding_being_inserted,self.val_being_inserted)
                 if val2cmp == None:

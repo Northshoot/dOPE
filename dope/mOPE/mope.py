@@ -31,8 +31,8 @@ def mOPE_baseline(nSIMSTEPS):
       gateway.receive_packet()
 
     # Print the resulting mOPE data struct at the servre
-    print "The resulting tree structure"
-    print server.mOPE_struct
+    print("The resulting tree structure")
+    print(server.mOPE_struct)
     return
 
 
