@@ -36,6 +36,9 @@ class SGTree:
 
   def balanced_h(self):
     return floor(log(self.size,(1/self.alpha)))
+
+  def size(self):
+    return self.size
     
 
 
@@ -45,7 +48,7 @@ class SGTree:
 ###############################################################
 
 def search(node,val):
-  if node == None:
+  if node is None:
     return False
   elif node.data == val:
     return True
@@ -57,10 +60,13 @@ def search(node,val):
 
 # Determine the size of the tree with node as the root
 def size(node):
-  if node == None:
+  if node is None:
     return 0
   else:
     return size(node.r)+size(node.l)+1 
+
+def size_tree(sgtree):
+  return size(sgtree.root)
 
 # Determine if this node has an imbalance between left and right children
 def is_scapegoat(sgtree,node):
@@ -73,7 +79,7 @@ def is_scapegoat(sgtree,node):
 
 # Helper function taking an unbalanced sgtree node and building a sorted list of data
 def _build_list(node):
-  if node == None:
+  if node is None:
     return []
   else:
     return _build_list(node.l) + [node.data] + _build_list(node.r)
@@ -103,7 +109,7 @@ def rebalance(node):
 
 # Helper function returns flag indicating a rebalance is needed and the new tree
 def _insert(sgtree,node,val,depth):
-  if node == None:
+  if node is None:
     sgtree.size += 1
     if (depth > sgtree.balanced_h() ):
       return (True,SGNode(val))
@@ -154,7 +160,7 @@ def insert(sgtree,val):
 
 # Pre-order search of bst
 def linear_search(node,val):
-  if node == None:
+  if node is None:
     return False
   elif node.data == val:
     return True 
@@ -168,7 +174,7 @@ def linear_search(node,val):
 # return the (enc,found). e is the mOPE encoding as a list of 1s and 0s
 # this is None if there is no encoding.  Found is true iff val in bst
 def get_encoding(node,val):
-  if node == None:
+  if node is None:
     return (None,False)
   elif node.data == val:
     return ([],True)
@@ -189,7 +195,7 @@ def get_encoding(node,val):
 def _traverse_insert(sgtree,node,encoding,val,depth):
   if encoding == []:
 
-    if node == None:
+    if node is None:
       sgtree.size += 1
       if (depth > sgtree.balanced_h() ):
         return (True,None,SGNode(val))
@@ -199,14 +205,14 @@ def _traverse_insert(sgtree,node,encoding,val,depth):
     else:
       if val == node.data:
         # Found the value, Tree must still be balanced
-        return (False,None,SGNode(val))
+        return (False,None,node)
       else:
         return (False,node.data,node)
 
 
   else:
 
-    if node == None:
+    if node is None:
       raise ValueError("Encoding points beyond this tree")
 
     #Search the Left Branch
@@ -214,10 +220,10 @@ def _traverse_insert(sgtree,node,encoding,val,depth):
       (unbalanced,data,new_l) = _traverse_insert(sgtree,node.l,encoding[1:],val,depth+1)
       node.l = new_l
       # If insert successful check for rebalancing
-      if data == None:
+      if data is None:
         if unbalanced:
           # Check if this is a scapegoat node
-          if is_scapegoat(node):
+          if is_scapegoat(sgtree,node):
             return(False,None,rebalance(node))
           return(True,None,node)
       return (False,data,node)
@@ -227,15 +233,18 @@ def _traverse_insert(sgtree,node,encoding,val,depth):
       (unbalanced,data,new_r) = _traverse_insert(sgtree,node.r,encoding[1:],val,depth+1)
       node.r = new_r
       # If insert successful check for rebalancing
-      if data == None:
+      if data is None:
         if unbalanced:
           # Check if this is a scapegoat node
-          if is_scapegoat(node):
+          if is_scapegoat(sgtree,node):
             return(False,None,rebalance(node))
           return(True,None,node)
       return (False,data,node)
 
 def traverse_insert(sgtree,encoding,val):
+  if sgtree is None:
+    return (None,SGTree(val))
+
   data,new_root = _traverse_insert(sgtree,sgtree.root,encoding,val,0)[1:]
   sgtree.root = new_root
-  return data,new_root
+  return data,sgtree

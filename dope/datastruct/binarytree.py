@@ -1,6 +1,7 @@
 __author__ = 'lauril'
 # Pretty printing from steve krenzel http://stevekrenzel.com/articles/printing-trees
 
+
 class BSTree:
 	def __init__(self,val):
 		# None stands in for empty leaves
@@ -30,7 +31,7 @@ class BSTree:
 ###############################################################
 
 def insert(bst,val):
-	if bst == None:
+	if bst is None:
 		 return Tree(val)
 	else:
 		if bst.data > val:
@@ -46,7 +47,7 @@ def insert(bst,val):
 
 
 def search(bst,val):
-	if bst == None:
+	if bst is None:
 		return False
 	elif bst.data == val:
 		return True
@@ -54,6 +55,15 @@ def search(bst,val):
 		return search(bst.l,val)
 	elif bst.data < val:
 		return search(bst.r,val)
+
+
+
+def size_tree(bst):
+  if bst is None:
+    return 0
+  else:
+    return size_tree(bst.r)+size_tree(bst.l)+1
+
 
 
 ##############################################################
@@ -64,7 +74,7 @@ def search(bst,val):
 
 # Pre-order search of bst
 def linear_search(bst,val):
-	if bst == None:
+	if bst is None:
 		return False
 	elif bst.data == val:
 		return True 
@@ -78,7 +88,7 @@ def linear_search(bst,val):
 # return the (enc,found). e is the mOPE encoding as a list of 1s and 0s
 # this is None if there is no encoding.  Found is true iff val in bst
 def get_encoding(bst,val):
-	if bst == None:
+	if bst is None:
 		return (None,False)
 	elif bst.data == val:
 		return ([],True)
@@ -97,7 +107,7 @@ def get_encoding(bst,val):
 # put val here and return None. Also return the updated tree
 def traverse_insert(bst,encoding,val):
 	if encoding == []:
-		if bst == None:
+		if bst is None:
 			return(None,BSTree(val))
 		else:
 			if val == bst.data:
@@ -106,7 +116,7 @@ def traverse_insert(bst,encoding,val):
 			else:
 				return (bst.data, bst)
 	else:
-		if bst == None:
+		if bst is None:
 			raise ValueError("Encoding points beyond this tree")
 		elif encoding[0]==0: 
 			# search left branch

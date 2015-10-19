@@ -1,5 +1,7 @@
 __author__ = 'WDaviau'
 from tiers.Tiers import Sensor, Gateway, Server
+#from datastruct.binarytree import size_tree
+from datastruct.scapegoat_tree import size_tree
 '''
 Functions defining mOPE simulation
 '''
@@ -33,6 +35,7 @@ def mOPE_baseline(nSIMSTEPS):
     # Print the resulting mOPE data struct at the servre
     print("The resulting tree structure")
     print(server.mOPE_struct)
+    print("For a total of " + str(size_tree(server.mOPE_struct)) + " unique elements ")
     return
 
 

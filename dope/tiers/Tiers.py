@@ -1,8 +1,9 @@
 __author__ = 'WDaviau'
 from comm.comm import Communicator
 from .DataGenerator import DataGenerator
-from datastruct.binarytree import BSTree, traverse_insert
-from utils import debugmethods
+#from datastruct.binarytree import traverse_insert
+from datastruct.scapegoat_tree import traverse_insert
+#from utils import debugmethods
 
 @debugmethods
 class Tier(object):
@@ -121,9 +122,7 @@ class Server(Tier):
                 # Only one insert at a time
                 return
             else:
-                ################# For debugging print all data being inserted
-                print( "Server inserting:" + str(packet.data))
-                #################
+                print("inserting "+str(packet.data))
                 self.val_being_inserted = packet.data
                 self.encoding_being_inserted = []
                 (val2cmp,new_struct) = traverse_insert(self.mOPE_struct,
@@ -136,11 +135,9 @@ class Server(Tier):
                     order_query = [self.val_being_inserted,val2cmp]
                     self.communicator.send(order_query,'order_query')
         elif packet.call_type == 'order_query':
-            print("Server is getting an order query")
             if packet.data == 0 or packet.data == 1:
                 # The encoding of the value being insert branches left if 0 right if 1
                 self.encoding_being_inserted.append(packet.data)
-                print("encoding before: " + str(self.encoding_being_inserted))
                 (val2cmp, new_struct) = traverse_insert(self.mOPE_struct,
                                         self.encoding_being_inserted,self.val_being_inserted)
                 if val2cmp == None:

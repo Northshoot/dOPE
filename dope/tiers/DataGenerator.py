@@ -16,7 +16,7 @@ class DataGenerator(object):
         random.seed()
 
     def get_next(self):
-        if self.distribution == 'random' and type(self.data_type) is int:
+        if self.distribution == 'random' and self.data_type is int:
             return random.randint(self.bounds[0], self.bounds[1])
         elif self.distribution == 'uniform' and type(self.data_type) is float:
             return random.uniform(self.bounds[0], self.bounds[1])
