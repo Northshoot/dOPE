@@ -122,7 +122,10 @@ class Server(Tier):
                 # Only one insert at a time
                 return
             else:
-                print("inserting "+str(packet.data))
+                ################# For debugging print all data being inserted
+                print("Server inserting:" + str(packet.data))
+                #################
+
                 self.val_being_inserted = packet.data
                 self.encoding_being_inserted = []
                 (val2cmp,new_struct) = traverse_insert(self.mOPE_struct,
