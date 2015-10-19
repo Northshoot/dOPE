@@ -5,7 +5,7 @@ import sys, os
 
 def run():
     # import here because we need to set up syspath prior importing
-    from mOPE.mope import mOPE_baseline
+    from mope.mope import mOPE_baseline
     # Number of simulation steps
     nSIMSTEPS = 100
     # Run basline simulation

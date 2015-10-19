@@ -120,3 +120,5 @@ def traverse_insert(bst,encoding,val):
 			return (data,bst)
 
 
+
+
