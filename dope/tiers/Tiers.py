@@ -3,9 +3,9 @@ from comm.comm import Communicator
 from .DataGenerator import DataGenerator
 #from datastruct.binarytree import traverse_insert
 from datastruct.scapegoat_tree import traverse_insert
-#from utils import debugmethods
+from utils import debugmethods
 
-@debugmethods
+#@debugmethods
 class Tier(object):
     '''
     IoT Tier Class
@@ -23,7 +23,7 @@ class Tier(object):
             self.communicator2.connect(other_tier2.communicator)
             other_tier2.communicator.connect(self.communicator2)
 
-@debugmethods
+#@debugmethods
 class Sensor(Tier):
     '''
     IoT Sensor Class
@@ -32,6 +32,8 @@ class Sensor(Tier):
         super(Sensor,self).__init__('Sensor',Communicator())
         self.data_gen = DataGenerator()
         self.__sk = 0 # A dummy secret key that isn't used or properly initialized (yet)
+        self.num_sent = 0
+        self.num_gen = 0
 
     def encrypt(self,plaintxt):
         # A dummy encryption function that doesn't do anything
@@ -42,14 +44,17 @@ class Sensor(Tier):
         return cipher
 
     def generate_send_data(self):
-        # Note data is simply dropped if the gateway channel is busy
+        # Data is simply dropped if the gateway channel is busy
+        self.num_gen += 1
         plaintxt = self.data_gen.get_next() 
         cipher = self.encrypt(plaintxt)
-        self.communicator.send(cipher,'insert')
+        sent = self.communicator.send(cipher,'insert')
+        if sent:
+            self.num_sent += 1
 
     def receive_packet(self):
         packet = self.communicator.read()
-        if packet == None:
+        if packet is None:
             return
         elif packet.call_type == 'insert':
             raise ValueError('Server cannot send insert requests')
@@ -70,7 +75,7 @@ class Sensor(Tier):
             self.communicator.send(comparison,'order_query')
 
 
-@debugmethods
+#@debugmethods
 class Gateway(Tier):
     '''
     IoT Gateway Class
@@ -81,27 +86,25 @@ class Gateway(Tier):
     def receive_packet(self):
         # Check for data fom the sensor
         packet = self.communicator.read()
-        if packet == None:
-            return
-        elif packet.call_type == 'insert':
-            # Pass along to the server
-            self.communicator2.send(packet.data,'insert')
-        elif packet.call_type == 'order_query':
-            # Pass along to the server
-            self.communicator2.send(packet.data,'order_query')
+        if packet:
+            if packet.call_type == 'insert':
+                # Pass along to the server
+                self.communicator2.send(packet.data,'insert')
+            elif packet.call_type == 'order_query':
+                # Pass along to the server
+                self.communicator2.send(packet.data,'order_query')
 
         # Check for data from the server
         packet = self.communicator2.read()
-        if packet == None:
-            return
-        elif packet.call_type == 'insert':
-            raise ValueError('Server cannot send insert requests')
-        elif packet.call_type == 'order_query':
-            # Pass along to the sensor
-            self.communicator.send(packet.data,'order_query')
+        if packet:
+            if packet.call_type == 'insert':
+                raise ValueError('Server cannot send insert requests')
+            elif packet.call_type == 'order_query':
+                # Pass along to the sensor
+                self.communicator.send(packet.data,'order_query')
         
 
-@debugmethods
+#@debugmethods
 class Server(Tier):
     '''
     Server Class
@@ -114,23 +117,23 @@ class Server(Tier):
 
     def receive_packet(self):
         packet = self.communicator.read()
-        if packet == None:
+        if packet is None:
             return
         elif packet.call_type == 'insert':
             # Server begins insert
-            if self.val_being_inserted != None:
+            if self.val_being_inserted:
                 # Only one insert at a time
                 return
             else:
                 ################# For debugging print all data being inserted
-                print("Server inserting:" + str(packet.data))
+                #print("Server inserting:" + str(packet.data))
                 #################
 
                 self.val_being_inserted = packet.data
                 self.encoding_being_inserted = []
                 (val2cmp,new_struct) = traverse_insert(self.mOPE_struct,
                                        self.encoding_being_inserted,self.val_being_inserted)
-                if val2cmp == None:
+                if val2cmp is None:
                     # Insert successful!
                     self.mOPE_struct = new_struct
                     self.val_being_inserted = None   
@@ -143,7 +146,7 @@ class Server(Tier):
                 self.encoding_being_inserted.append(packet.data)
                 (val2cmp, new_struct) = traverse_insert(self.mOPE_struct,
                                         self.encoding_being_inserted,self.val_being_inserted)
-                if val2cmp == None:
+                if val2cmp is None:
                     # Insert successful!
                     self.mOPE_struct = new_struct
                     self.val_being_inserted = None

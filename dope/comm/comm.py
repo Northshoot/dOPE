@@ -17,13 +17,14 @@ class Communicator(object):
         self.connected_comm = comm
         return
 
+    # Return true if channel is free and packet is sent, False if channel is busy
     def send(self, data, call_type):
         packet = Packet(data, call_type)
         if self.sent:
-            return
+            return False
         self.sent = packet
         self.connected_comm.received = packet
-        return
+        return True
 
     def read(self):
         if not self.received:

@@ -9,5 +9,8 @@ class Packet(object):
         self.call_type = call_type
         self.data = data
 
+    def __str__(self):
+      return self.call_type + ": " + str(self.data)
+
 
 
