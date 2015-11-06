@@ -24,26 +24,28 @@ def print_gateway_comm(gateway):
   print("\n")
 
 
-def mOPE_baseline(numINSERTSMAX):
-    #recording data
-    out_data = []
-    for numINSERTS in range(0,numINSERTSMAX,10):
-      #initialization and linking of tiers
-      sensor = Sensor()
-      gateway = Gateway()
-      server = Server()
+def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, distribution = 'random'):
+  
+    #initialization and linking of tiers
+    sensor = Sensor(data_queue_len, distribution)
+    gateway = Gateway()
+    server = Server()
 
-      sensor.link(gateway)
-      gateway.link(sensor,server)
-      round = 0
-  	 #event loop
-      while sensor.num_sent < numINSERTS + 1:
-        round += 1
+    sensor.link(gateway)
+    gateway.link(sensor,server)
+    tic = 0
+    #event loop
+    while tic < maxTics:
+      tic += 1
+      # Generate data and place in lower priority queue.
+      if tic % dataTics == 0:
+        sensor.generate_data()
+
+      # Send packets between devices
+      if tic % networkTics == 0:
         # Check for order queries to process
-        # Generate data and send if connection is not busy
-        # with order queries
         sensor.receive_packet()
-        sensor.generate_send_data()
+        sensor.send_data();
 
         # Pipe order queries and inserts between sensor and server
         gateway.receive_packet()
@@ -53,11 +55,11 @@ def mOPE_baseline(numINSERTSMAX):
 
         # In case of order_queries pipe packet between server and sensor
         gateway.receive_packet()
-      # Print the resulting mOPE data struct at the server
-      print("The resulting tree structure")
-      print(server.mOPE_struct)
-      print("For a total of " + str(round-1) + " RTTs. " + str(sensor.num_gen - numINSERTS -1) + " data points dropped. ")
-      out_data.append(round)
-    return out_data
 
 
+    # Print the resulting mOPE data struct at the server
+    print("The resulting tree structure")
+    print(server.mOPE_struct)
+    print("Causing " + str(server.num_rebalances) + " rebalances\n")
+    print("For a total of " + str(int(tic/networkTics)) + " round trip times. ")
+    print("And " + str(sensor.num_gen - sensor.num_data_sent) + " dropped packets")

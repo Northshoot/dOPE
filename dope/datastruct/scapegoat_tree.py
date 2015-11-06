@@ -34,6 +34,8 @@ class SGTree:
   def __str__(self):
     return self.root.__str__()
 
+  # Return the height which is considered balanced for a scapegoat 
+  # tree of this size
   def balanced_h(self):
     return floor(log(self.size,(1/self.alpha)))
 
@@ -189,25 +191,37 @@ def get_encoding(node,val):
       return (None, False)
 
 
-# Provided an encoding return the value of the data at this location
-# if there is no data in this position, or the value equals the data,
-# put val here and return None. Also return the updated tree
+# Provided an encoding return three values.
+# 1. If the tree is unbalanced after performing an insert return
+# True in the first field, otherwise return False
+# 
+# 2. If the current encoding comes to an end and a further comparison
+# is necessary to continue the traversal return the encrypted data
+# at this node, otherwise return None
+#
+# 3. Return the possibly updated SG subtree
+#
+# 4. If a rebalancing has happened during this traversal return True
+# otherwise return False
+#
+# Return value: ( Tree_is_unbalanced, data_that_needs_to_be_compared, New Tree)
 def _traverse_insert(sgtree,node,encoding,val,depth):
   if encoding == []:
 
     if node is None:
       sgtree.size += 1
       if (depth > sgtree.balanced_h() ):
-        return (True,None,SGNode(val))
+        return (True,None,SGNode(val),False)
       else:
-        return (False,None,SGNode(val))
+        return (False,None,SGNode(val),False)
       
     else:
       if val == node.data:
-        # Found the value, Tree must still be balanced
-        return (False,None,node)
+        # Found the value
+        return (False,None,node,False)
       else:
-        return (False,node.data,node)
+        # Need to decrypt data at this node to continue traversal
+        return (False,node.data,node,False)
 
 
   else:
@@ -217,34 +231,45 @@ def _traverse_insert(sgtree,node,encoding,val,depth):
 
     #Search the Left Branch
     elif encoding[0]==0: 
-      (unbalanced,data,new_l) = _traverse_insert(sgtree,node.l,encoding[1:],val,depth+1)
+      (unbalanced, out_data, new_l, rebalanced) = _traverse_insert(sgtree,node.l,encoding[1:],val,depth+1)
       node.l = new_l
       # If insert successful check for rebalancing
-      if data is None:
+      if out_data is None:
         if unbalanced:
           # Check if this is a scapegoat node
           if is_scapegoat(sgtree,node):
-            return(False,None,rebalance(node))
-          return(True,None,node)
-      return (False,data,node)
+            # Rebalance
+            return(False, None, rebalance(node), True)
+          return(True, None, node, rebalanced)
+      return (False, out_data, node, rebalanced)
 
     #Search the Right Branch
     else:
-      (unbalanced,data,new_r) = _traverse_insert(sgtree,node.r,encoding[1:],val,depth+1)
+      (unbalanced, out_data, new_r, rebalanced) = _traverse_insert(sgtree,node.r,encoding[1:],val,depth+1)
       node.r = new_r
       # If insert successful check for rebalancing
-      if data is None:
+      if out_data is None:
         if unbalanced:
           # Check if this is a scapegoat node
           if is_scapegoat(sgtree,node):
-            return(False,None,rebalance(node))
-          return(True,None,node)
-      return (False,data,node)
+            return(False, None, rebalance(node), True)
+          return(True, None, node, rebalanced)
+      return (False, out_data, node, rebalanced)
 
+# Provided a ScapeGoat Tree, a partial encoding for insertion and a value to insert,
+# return 3 values:
+#
+# 1. The output data that requires a comparison to continue traversal
+# 
+# 2. A possibly modified Scape Goat tree
+#
+# 3. A boolean flag, True if the tree has been rebalanced, False otherwise
+#
+# Return: (out_data, new_SG_tree, rebalanced)
 def traverse_insert(sgtree,encoding,val):
   if sgtree is None:
-    return (None,SGTree(val))
+    return (None, SGTree(val), False)
 
-  data,new_root = _traverse_insert(sgtree,sgtree.root,encoding,val,0)[1:]
+  data, new_root, rebalanced = _traverse_insert(sgtree,sgtree.root,encoding,val,0)[1:]
   sgtree.root = new_root
-  return data,sgtree
+  return data, sgtree, rebalanced
