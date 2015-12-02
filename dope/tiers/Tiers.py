@@ -37,6 +37,7 @@ class Sensor(Tier):
         self.num_gen = 0
         self.comp_req_queue = queue.Queue(1)
         self.data_queue = queue.Queue(data_queue_len)
+        self.insert_round_trips = []
 
     def encrypt(self,plaintxt):
         # A dummy encryption function that doesn't do anything
@@ -52,16 +53,17 @@ class Sensor(Tier):
             # If link to gateway is free
             if self.communicator.sent is None:
                 comparison = self.comp_req_queue.get_nowait();
+                self.insert_round_trips[-1] += 1
                 self.communicator.send(comparison, 'order_query' )
             return
 
-        # If nothing in the priority queue send enqueud data if any 
+        # If nothing in the priority queue send enqueud data if any
+        self.insert_round_trips.append(1)
         if not self.data_queue.empty():
             # If link to gateway is free
             if self.communicator.sent is None:
                 cipher = self.data_queue.get_nowait()
                 self.communicator.send(cipher, 'insert')
-                self.num_data_sent +=1
             return
 
     def generate_data(self):
@@ -72,6 +74,7 @@ class Sensor(Tier):
         # Enqueue if there is room
         try:
             self.data_queue.put_nowait(cipher)
+            self.num_data_sent += 1
         except queue.Full:
             # If there is not room in the queue drop data
             return

@@ -4,12 +4,18 @@ import sys, os, argparse
 
 
 def run(numTics, dataTics, networkTics, data_queue_len, distribution):
-    print(distribution)
     # import here because we need to set up syspath prior importing
     from mope.mope import mOPE_baseline
     
     # Run basline simulation
     mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, distribution)
+
+
+# def get_plot_data(numTics, dataTics, networkTics, data_queue_len, distribution):
+#     # import here because we need to set up syspath prior importing
+#     from mope.mope import mOPE_baseline
+
+#     mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, distribution)
     
     
 if __name__ == "__main__":
