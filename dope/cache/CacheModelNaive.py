@@ -195,6 +195,19 @@ class CacheModel(object):
         level -= 1
       print("Insert should not register unbalanced if no scapegoat can be found") 
 
+  ## Internal Method _median_find
+  ## ----------------------------
+  ## Return the median and the index of the median of the provided list
+  ## The list is sorted!  Which makes this simple.  If the list has an even
+  ## length then return the lower of the two middle values
+  def _median_find(inlist):
+    if len(inlist) % 2 == 0:
+      median_idx = len(inlist)/2 -1
+    else:
+      median_idx = len(inlist)/2
+    return median_idx, inlist[median_idx]
+
+
   ## Internal Method rebalance_node
   ## ------------------------------
   ## If all elements of subtree rooted at node of provided index are in cache
@@ -211,16 +224,39 @@ class CacheModel(object):
       subtree_list = [x for x in self.cache if x.encoding[0:start_level] = start_encoding]
       self.cache = [x for x in self.cache if x is not in subtree_list]
       subtree_list = sorted(subtree_list, lambda x: ''.join(str(y) for y in x.encoding))
-      encoding = start_encoding
-      next_digit = 0
-      while subtree_list is not []:
-        # Add the entry for rebalancing
+
+      # Reorder entries, placing successive medians into the rebalanced list
+      rebalanced_subtree = []
+      while subtree_list is not []:      
         median, median_idx = _median_find(subtree_list)
-        _cachetable_add(index, median.cipher_text, encoding)
-        encoding.append(next_digit)
-        next_digit = 0 if next_digit == 1 else 1  ## currently working on how to find the next encoding
-      _rebalance_coherence(index)
+        del subtree_list[median_idx]
+        rebalanced_subtree.append(median)
+
+      # Reassign encodings
+      rebalanced_subtree[0].encoding = start_encoding
+      leaf_set_size = 1
+      leaf_set_start = 0
+      next_leaf_idx = leaf_set_start
+      next_symbol = 0
+      for entry in rebalanced_subtree[1:]:
+        entry.encoding = rebalanced_subtree[next_leaf_idx].encoding
+        entry.encoding.append(next_symbol)
+        next_symbol = 1 if next_symbol == 0 else 0
+        next_leaf_idx += 1
+        if leaf_set_start + leaf_set_size == next_leaf_idx:
+          # Finished one level
+          leaf_set_start = next_leaf_idx
+          leaf_set_size *= 2
+      # Add new encodings into the cache.  No problem with collisions 
+      # because all possible new encodings have to be in the subtree that
+      # was filtered out of the cache.  Solved by simple merge call
+      merge(rebalanced_subtree)
+      # Signal the higher levels of the hierarchy to maintain coherence
+      rebalance_index = next(i for i,v in enumerate(self.cache) if v.encoding == start_encoding)
+      _rebalance_coherence(rebalance_index)
     else:
+      # Evict this subtree and request that the next level of the hierarchy 
+      # handle rebalancing
       _rebalance_request(index)
 
 
@@ -232,9 +268,31 @@ class CacheModel(object):
   def _handle_miss(self):
     _evict( min(self.current_size, subtree_size))
 
-  # For higher tiers, merge new entries to existing cache
-  def merge(self, incoming_entries):
+  ## Internal Method rebalance_coherence
+  ## -----------------------------------
+  ## Signal the next level of the hierarchy about a rebalnce in order to keep
+  ## levels coherent
+  def _rebalance_coherence(index):
+    list_to_send = 
 
+  ## Method merge
+  ## ------------
+  ## For higher tiers, merge new entries to existing cache.
+  ## Also used internally to merge in newly rebalanced subtrees.
+  ## Maintains the partitioning of levels in the cache but no further
+  ## ordering claims.  Assumes all incoming entries are either new or 
+  ## repeats.  All incoherence is handled elsewhere
+  def merge(self, incoming_entries):
+    insert_index = 0
+    incoming_entries = sorted(incoming_entries)
+    incoming_entries = [x for x in incoming_entries if x.encoding != y.encoding for y in self.cache] # Filter out repeats
+    for entry in incoming_entries:
+      if len(self.cache[insert_index].encoding) < len(entry.encoding):
+        if insert_index == len(self.cache) - 1:
+          self.cache.append(entry)
+        insert_index += 1
+      else:
+        self.cache.insert(insert_index, entry)
 
 class CacheEntry(object):
   '''
@@ -248,9 +306,21 @@ class CacheEntry(object):
     self.lru = lru_tag
 
   def __str__(self):
-    selfstr = "-------------\n" + str(self.plaintext_data) + "\n" + str(self.encoding) + "\n" + str(self.subtree_size) + "\n";
+    selfstr = "-------------------------\nPlaintext:" + str(self.plaintext_data) + "\nEncoding:" + str(self.encoding) + "\nSubtree Size:" + str(self.subtree_size) + "\n";
     if self.is_leaf:
       selfstr+= "LEAF\n"
 
     selfstr+= "-------------\n"
     return selfstr
+
+class OutgoingMessage(Object)
+  '''
+  A message to be sent to another level of the caching hierarchy.
+  '''
+  def __init__(self, messageType, entryList):
+    self.entryList = entryList
+    self.messageType = messageType
+
+class messageType:
+  insertRequest, insertResponse, rebalanceCoherencyRequest, rebalanceNonLocalRequest = range(4)
+  
