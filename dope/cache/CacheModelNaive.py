@@ -18,6 +18,7 @@ class CacheModel(object):
     self.lru_tag = 0
     self.outgoing_messages = []
     self.sg_alpha = 0.5
+    self.waiting_on_insert = (False, None)
 
   ## Method insert 
   ## -------------
@@ -41,6 +42,8 @@ class CacheModel(object):
 
     # Traverse tree encoded in cache
     while (not current_entry.is_leaf):
+      current_entry.lru = self.lru_tag
+      self.lru_tag += 1
       current_plaintext = decrypt(current_entry.cipher)
       if current_plaintext == new_plaintext:
         return  # Found the value no further steps needed
@@ -54,6 +57,8 @@ class CacheModel(object):
           handle_miss()
 
       # Traversed up to leaf node
+      current_entry.lru = self.lru_tag
+      self.lru_tag += 1
       current_plaintext = decrypt(current_entry.cipher)
       if current_plaintext == new_plaintext:
         return # Found the value no further steps needed
@@ -88,11 +93,13 @@ class CacheModel(object):
   ## Internal Method evict 
   ## ---------------------
   ## Remove the num_eviction least recently used entries in the cache
+  ## Send a message 
   def _evict(self, int num_evictions):
     sorted_entries = sorted(self.cache, lambda x: x.lru)
     # Finding elements to evict could be much more intelligent than lru (locality missing)
     lru_entries = sorted_entries[:num_evictions]
     self.cache = [x for x in self.cache if not x in lru_entries]
+    return lru_entries
 
   ## Internal Method find_add_idx
   ## ----------------------------
@@ -207,15 +214,30 @@ class CacheModel(object):
       median_idx = len(inlist)/2
     return median_idx, inlist[median_idx]
 
+  ## Internal Method index_of_encoding
+  ## ---------------------------------
+  ## Return the index of the provided encoding
+  ## If it can't be found an exception will be raised so this 
+  ## should only be called when looking for an encoding previously
+  ## found in a list.  Does not search from a smart starting place 
+  ## like search_for_encoding
+  def _index_of_encoding(encoding):
+    return next(i for i,v in enumerate(self.cache) if v.encoding == encoding)
 
+  ## Internal Method subtree_in_cache
+  ## --------------------------------
+  ## Return true if the entire subtree of entry at index is in the cache
+  def _subtree_in_cache(index):
+    start_encoding = self.cache[index]
+    subtree_in_cache = [x for x in self.cache if x.encoding[:len(start_encoding)] == start_encoding]
+    return len(subtree_in_cache) >= self.cache[index].subtree_size
+    
   ## Internal Method rebalance_node
   ## ------------------------------
   ## If all elements of subtree rooted at node of provided index are in cache
   ## then rebalance in cache and send coherency message up the hierarchy
   ## If not all elements of the subtree are in the cache then evict the whole
   ## subtree to be rebalanced and mark it for rebalancing up the hierarchy
-
-  ## Still work in progress
   def _rebalance_node(index):
     if _subtree_in_cache(index):
       # Can rebalance in the cache
@@ -252,28 +274,43 @@ class CacheModel(object):
       # was filtered out of the cache.  Solved by simple merge call
       merge(rebalanced_subtree)
       # Signal the higher levels of the hierarchy to maintain coherence
-      rebalance_index = next(i for i,v in enumerate(self.cache) if v.encoding == start_encoding)
-      _rebalance_coherence(rebalance_index)
+      rebalance_index = _index_of_encoding
+      _rebalance_coherence(rebalance_index) 
     else:
       # Evict this subtree and request that the next level of the hierarchy 
       # handle rebalancing
       _rebalance_request(index)
-
 
   ## Internal Method handle_miss
   ## ---------------------------
   ## Called during inserts when the next entry to compare is in the encoding
   ## tree but not in this level of the cache.  Bring in as much of the subtree
   ## rooted at the entry associated with the provided index
-  def _handle_miss(self):
-    _evict( min(self.current_size, subtree_size))
+  def _handle_miss(self, subtree_root):
+    root_entry = self.cache[subtree_root]
+    start_encoding = root_entry.encoding
+    requested_size = min(self.current_size -1, root_entry.subtree_size)
+    self.cache[subtree_root].lru = self.lru_tag
+    _evict(requested_size)
+    self.waiting_on_insert = (True, _index_of_encoding(start_encoding))
+    self.outgoing_messages.append(OutgoingMessage(insertRequest, [root_entry], request_size))
 
   ## Internal Method rebalance_coherence
   ## -----------------------------------
-  ## Signal the next level of the hierarchy about a rebalnce in order to keep
+  ## Signal the next level of the hierarchy about a rebalance in order to keep
   ## levels coherent
   def _rebalance_coherence(index):
-    list_to_send = 
+    root_entry = self.cache[index]
+    ##list_to_send = [x for x in self.cache if x.encoding[:len(start_encoding)] == start_encoding]
+    self.outgoing_messages.append(OutgoingMessage(rebalanceCoherencyRequest, [root_entry]))
+
+  ## Internal Method rebalance_request
+  ## ---------------------------------
+  ## Send a request for the next level in the hierarchy to handle rebalancing of this node for you
+  def _rebalance_request(index):
+    root_entry = self.cache[index]
+    self.outgoing_messages.append(OutgoingMessage(rebalanceNonLocalRequest, [root_entry]))
+
 
   ## Method merge
   ## ------------
@@ -294,6 +331,8 @@ class CacheModel(object):
       else:
         self.cache.insert(insert_index, entry)
 
+
+  ## Handle rebalance
 class CacheEntry(object):
   '''
   One entry in a cache table
@@ -317,10 +356,10 @@ class OutgoingMessage(Object)
   '''
   A message to be sent to another level of the caching hierarchy.
   '''
-  def __init__(self, messageType, entryList):
+  def __init__(self, messageType, entryList, size = 0):
     self.entryList = entryList
     self.messageType = messageType
+    self.size = size
 
 class messageType:
-  insertRequest, insertResponse, rebalanceCoherencyRequest, rebalanceNonLocalRequest = range(4)
-  
+  insertRequest, insertResponse, rebalanceCoherencyRequest, rebalanceNonLocalRequest, evictionRequest = range(5)
