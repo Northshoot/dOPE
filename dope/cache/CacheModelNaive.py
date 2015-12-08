@@ -60,7 +60,7 @@ class CacheModel(object):
       _update_parent_sizes(new_entry_encoding)
       cache[current_index].is_leaf = False
       new_entry_encoding.append(0 if current_plaintext > new_plaintext else 1)
-      if self.max_size is not None and self.current_size == self.max_size
+      if self.max_size is not None and self.current_size == self.max_size:
         _evict(1)
       new_ciphertext = encrypt(new_plaintext)
       _cachetable_add(current_index, new_ciphertext, new_entry_encoding)
@@ -201,8 +201,6 @@ class CacheModel(object):
   ## then rebalance in cache and send coherency message up the hierarchy
   ## If not all elements of the subtree are in the cache then evict the whole
   ## subtree to be rebalanced and mark it for rebalancing up the hierarchy
-
-  ## Still work in progress
   def _rebalance_node(index):
     if _subtree_in_cache(index):
       # Can rebalance in the cache
