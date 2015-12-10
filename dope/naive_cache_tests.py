@@ -1,14 +1,16 @@
 from cache.CacheModelNaive import CacheModel
-from  datastruct.scapegoat_tree import SGTree, insert 
+from  datastruct.scapegoat_tree import SGTree, insert, enc_insert
 
 # For use comparing tree to verify rebalancing
 # As long as we go level by level we should be ok
 # The order should be preserved in the cache list
 # So not too much work
 def convert_cache_to_tree(cache):
+  # sort cache by encoding length
+  cache = sorted(cache, key = lambda x: len(x.encoding))
   sgtree = SGTree(cache[0].cipher_text)
   for elt in cache[1:]:
-    insert(sgtree, elt.cipher_text)
+    enc_insert(sgtree, elt.cipher_text, elt.encoding)
 
   return sgtree
 
@@ -40,6 +42,16 @@ def main():
   print(sgtree)
 
 
+  cache = CacheModel(100)
+  cache.insert(1)
+  cache.insert(0)
+  cache.insert(2)
+  cache.insert(3)
+  print(str(cache))
+  sgtree = convert_cache_to_tree(cache.cache)
+  print(sgtree)
+
+
   #import pdb; pdb.set_trace()
 
   # Test rebalancing
@@ -48,6 +60,8 @@ def main():
     cache.insert(i)
     print(str(cache))
     print("=========================================\n")
+    sgtree = convert_cache_to_tree(cache.cache)
+    print(sgtree)
 
   print(str(cache))
   sgtree = convert_cache_to_tree(cache.cache)
