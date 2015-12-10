@@ -25,6 +25,92 @@ class OutgoingMessage(object):
 class messageType:
   insertRequest, insertResponse, rebalanceCoherencyRequest, rebalanceNonLocalRequest, evictionRequest = range(5)
 
+## Method encoding_cmp
+  ## ----------------------------
+  ## Compares two encoding lists of 1s and 0s.  Trailing 0s go before
+  ## Trailing 1s
+def encoding_cmp(enc1, enc2):
+  # Handle empty encoding
+  if enc1 == []:
+    if enc2 == []:
+      return 0
+    elif enc2[0] == 0:
+      return 1
+    else:
+      return -1
+  if enc2 == []:
+    if enc1 == []:
+      return 0
+    elif enc1[0] == 0:
+      return -1
+    else:
+      return 1
+
+  if enc1[0] == enc2[0]:
+    if len(enc1) == 1 and len(enc2) == 1:
+      return 0
+    elif len(enc1) == 1:
+      if enc2[1] == 1:
+        return -1
+      else:
+        return 1
+    elif len(enc2) == 1:
+      if enc1[1] == 1:
+        return 1
+      else:
+        return -1
+    else:
+      return encoding_cmp(enc1[1:],enc2[1:])
+  if enc1[0] != enc2[0]:
+    if enc1[0] == 0:
+      return -1
+    else:
+      return 1
+
+## Handle rebalance
+class CacheEntry(object):
+  '''
+  One entry in a cache table
+  '''
+  def __init__(self, ciphertext_data, encoding, lru_tag):
+    self.cipher_text = ciphertext_data
+    self.encoding = encoding
+    self.subtree_size = 1
+    self.is_leaf = True
+    self.has_one_child = False
+    self.lru = lru_tag
+
+  def __str__(self):
+    selfstr = "-------------------------\nCiphertext:" + str(self.cipher_text) + "\nEncoding:" + str(self.encoding) + "\nSubtree Size:" + str(self.subtree_size) + "\n"
+    if self.is_leaf:
+      selfstr+= "LEAF\n"
+    elif self.has_one_child:
+      selfstr+= "ONE CHILD\n"
+    else:
+      selfstr+= "TWO CHILDREN\n"
+
+    selfstr+= "-------------\n"
+    return selfstr
+
+  # To compare during sorting by encoding for rebalancing
+  def __lt__(self,other):
+    return encoding_cmp(self.encoding, other.encoding) < 0
+
+  def __gt__(self,other):
+    return encoding_cmp(self.encoding, other.encoding) > 0
+
+  def __eq__(self,other):
+    return encoding_cmp(self.encoding, other.encoding) == 0
+
+  def __le__(self,other):
+    return encoding_cmp(self.encoding, other.encoding) <= 0
+
+  def __ge__(self,other):
+    return encoding_cmp(self.encoding, other.encoding) >= 0
+
+  def __ne__(self,other):
+    return encoding_cmp(self.encoding, other.encoding) != 0
+
 
 class CacheModel(object):
 
@@ -53,27 +139,6 @@ class CacheModel(object):
     for elt in list_to_copy:
       new_list.append(elt)
     return new_list
-
-  ## Internal Method search_for_encoding
-  ## -----------------------------------
-  ## Provided a cache index and the encoding of the child we are looking for
-  ## search the region of the cache where this child could be and return 
-  ## False if not found, True if found and in this case also the child entry's index
-  def _search_for_encoding(self, current_cache_index, next_encoding):
-      #import pdb; pdb.set_trace()
-      current_encoding = self.cache[current_cache_index].encoding
-      start_level = len(current_encoding)
-
-      # Search up to next tree level for next encoding
-      while (len(current_encoding) < start_level + 2 and current_cache_index < self.current_size-1):
-        current_cache_index += 1
-        current_encoding = self.cache[current_cache_index].encoding
-        if current_encoding == next_encoding:
-          return (True, current_cache_index)
-
-      # No encoding found
-      return(False, -1)
-
 
 
 
@@ -117,9 +182,8 @@ class CacheModel(object):
   def _update_parent_sizes(self, encoding):
     level = 1
     self.cache[0].subtree_size += 1
-    current_index = 0
     while (level <= len(encoding)):
-      _, next_index = self._search_for_encoding(current_index, encoding[:level])
+      next_index = self._index_of_encoding(encoding[:level])
       self.cache[next_index].subtree_size += 1
       current_index = next_index
       level += 1
@@ -152,11 +216,8 @@ class CacheModel(object):
   def _left_child(self, index):
     encoding = self._enc_copy(self.cache[index].encoding)
     encoding.append(0)
-    found, left_child_index = self._search_for_encoding(index, encoding)
-    if found == False:
-      return None
-    else: 
-      return left_child_index
+    left_child_index = self._index_of_encoding(encoding)
+    return left_child_index
 
   ## Internal Method right_child
   ## ---------------------------
@@ -165,11 +226,8 @@ class CacheModel(object):
   def _right_child(self, index):
     encoding = self._enc_copy(self.cache[index].encoding)
     encoding.append(1)
-    found, right_child_index = self._search_for_encoding(index, encoding)
-    if found == False:
-      return None
-    else: 
-      return right_child_index
+    right_child_index = self._index_of_encoding(encoding)
+    return right_child_index
 
   ## Internal Method is_scapegoat_node
   ## ---------------------------------
@@ -187,34 +245,28 @@ class CacheModel(object):
         return True
     return False
 
-  ## Internal Method encoding_cmp
-  ## ----------------------------
-  ## Compares two encoding lists of 1s and 0s.  Trailing 0s go before
-  ## Trailing 1s
-  def _encoding_cmp(enc1, enc2):
-    if enc1[0] == enc2[0]:
-      if len(enc1) ==1 and len(enc2) == 1:
-        return 0
-      elif len(enc1) == 1:
-        if enc2[1] == 1:
-          return 1
-        else:
-          return -1
-      elif len(enc2) == 1:
-        if enc1[1] == 1:
-          return -1
-        else:
-          return 1
-      else:
-        return _encoding_cmp(enc1[1:],enc2[1:])
+  ## Internal Method buid_balanced
+  ## -----------------------------
+  ## Return a balanced subtree cache provided with an ordered encoding list
+  def _build_balanced(self, encoding, subtree_list):
+    if subtree_list == []:
+      return (0, [])
+    mid_index = math.floor(len(subtree_list)/2)
+    left = subtree_list[:mid_index]
+    right = subtree_list[mid_index+1:]
+    entry = CacheEntry(subtree_list[mid_index].cipher_text, encoding, subtree_list[mid_index].lru)
+    r_size, r_entry = self._build_balanced(encoding + [1], right)
+    l_size, l_entry = self._build_balanced(encoding + [0], left)
 
-    if enc1[0] != enc2[0]:
-      if enc1[0] == 0:
-        return 1
-      else 
-        return -1
+    # update entry metadata
+    entry.subtree_size += l_size + r_size
+    if r_entry != [] and l_entry != []:
+      entry.has_one_child = False
+      entry.is_leaf = False
+    elif not(r_entry == [] and l_entry == []):
+      entry.is_leaf = False
 
-
+    return (entry.subtree_size, sorted([entry] + r_entry + l_entry))
 
 
   ## Internal Method _median_find
@@ -237,7 +289,10 @@ class CacheModel(object):
   ## found in a list.  Does not search from a smart starting place 
   ## like search_for_encoding
   def _index_of_encoding(self, encoding):
-    return next(i for i,v in enumerate(self.cache) if v.encoding == encoding)
+    for i,v in enumerate(self.cache):
+      if v.encoding == encoding:
+        return i
+    return None
 
   ## Internal Method subtree_in_cache
   ## --------------------------------
@@ -260,6 +315,7 @@ class CacheModel(object):
   ## Send a request for the next level in the hierarchy to handle rebalancing of this node for you
   def _rebalance_request(self, index):
     root_entry = self.cache[index]
+    # Need to do an eviction too 
     self.outgoing_messages.append(OutgoingMessage(messageType.rebalanceNonLocalRequest, [root_entry]))
 
   ## Internal Method filter_cache_occupancy
@@ -282,21 +338,10 @@ class CacheModel(object):
   def merge(self, incoming_entries):
     insert_index = 0
     entry_index = 0
-    incoming_entries = sorted(incoming_entries, key=lambda x: ''.join(str(y) for y in x.encoding))
+    incoming_entries.sort()
     filter(self._filter_cache_occupancy, incoming_entries)
-    while entry_index < len(incoming_entries):
-      if self.cache == []:
-        self.cache.append(incoming_entries[entry_index])
-        entry_index += 1
-      elif len(self.cache[insert_index].encoding) < len(incoming_entries[entry_index].encoding):
-        if insert_index == len(self.cache) - 1:
-          self.cache.append(incoming_entries[entry_index])
-          entry_index += 1
-        insert_index += 1
-      else:
-        self.cache.insert(insert_index, incoming_entries[entry_index])
-        entry_index += 1
-
+    self.cache.extend(incoming_entries)
+    self.cache.sort()
 
   ## Internal Method rebalance_node
   ## ------------------------------
@@ -311,41 +356,11 @@ class CacheModel(object):
       start_level = len(start_encoding)
       subtree_list = [x for x in self.cache if x.encoding[0:start_level] == start_encoding]
       self.cache = [x for x in self.cache if x not in subtree_list]
-      subtree_list = sorted(subtree_list, cmp=self._encoding_cmp)
+      subtree_list = sorted(subtree_list)
 
       # Reorder entries, placing successive medians into the rebalanced list
-      rebalanced_subtree = []
-      while subtree_list != []:      
-        median, median_idx = self._median_find(subtree_list)
-        del subtree_list[median_idx]
-        rebalanced_subtree.append(median)
+      rebalanced_subtree = self._build_balanced(start_encoding, subtree_list)[1]
 
-      # Reassign encodings
-      for entry in rebalanced_subtree:
-        entry.has_one_child = False
-        entry.is_leaf = True
-        entry.subtree_size = 1
-      rebalanced_subtree[0].encoding = start_encoding
-      leaf_set_size = 1
-      leaf_set_start = 0
-      next_leaf_idx = leaf_set_start
-      next_symbol = 0
-
-      for idx, entry in enumerate(rebalanced_subtree[1:]):
-        entry.encoding = self._enc_copy(rebalanced_subtree[next_leaf_idx].encoding)
-        entry.encoding.append(next_symbol)
-        self._update_parent_sizes_list(entry.encoding, rebalanced_subtree[:idx+1])
-        next_symbol = 1 if next_symbol == 0 else 0
-        if next_symbol == 1:
-          rebalanced_subtree[next_leaf_idx].is_leaf = False
-          rebalanced_subtree[next_leaf_idx].has_one_child = True
-        elif next_symbol == 0: # move on to another new parent
-          rebalanced_subtree[next_leaf_idx].has_one_child = False
-          next_leaf_idx += 1  
-        if leaf_set_start + leaf_set_size == next_leaf_idx:
-          # Finished one level
-          leaf_set_start = next_leaf_idx
-          leaf_set_size *= 2
       # Add new encodings into the cache.  No problem with collisions 
       # because all possible new encodings have to be in the subtree that
       # was filtered out of the cache.  Solved by simple merge call
@@ -413,8 +428,8 @@ class CacheModel(object):
       current_entry = self.cache[start_index]
     else:
       # Start at root 
-      current_index = 0
-      current_entry = self.cache[0]
+      current_index = self._index_of_encoding([])
+      current_entry = self.cache[current_index]
 
     # Traverse tree encoded in cache
     while (not current_entry.is_leaf):
@@ -429,8 +444,8 @@ class CacheModel(object):
         break
       else:
         new_entry_encoding.append(0 if current_plaintext > new_plaintext else 1)
-        (found, index) = self._search_for_encoding(current_index, new_entry_encoding)
-        if found:
+        index = self._index_of_encoding(new_entry_encoding)
+        if index is not None:
           current_index = index
           current_entry = self.cache[current_index]
         else:
@@ -456,28 +471,5 @@ class CacheModel(object):
     self.rebalance(new_entry_encoding)
 
 
-## Handle rebalance
-class CacheEntry(object):
-  '''
-  One entry in a cache table
-  '''
-  def __init__(self, ciphertext_data, encoding, lru_tag):
-    self.cipher_text = ciphertext_data
-    self.encoding = encoding
-    self.subtree_size = 1
-    self.is_leaf = True
-    self.has_one_child = False
-    self.lru = lru_tag
 
-  def __str__(self):
-    selfstr = "-------------------------\nCiphertext:" + str(self.cipher_text) + "\nEncoding:" + str(self.encoding) + "\nSubtree Size:" + str(self.subtree_size) + "\n"
-    if self.is_leaf:
-      selfstr+= "LEAF\n"
-    elif self.has_one_child:
-      selfstr+= "ONE CHILD\n"
-    else:
-      selfstr+= "TWO CHILDREN\n"
-
-    selfstr+= "-------------\n"
-    return selfstr
 
