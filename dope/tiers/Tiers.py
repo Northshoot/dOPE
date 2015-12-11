@@ -5,6 +5,7 @@ from .DataGenerator import DataGenerator
 from datastruct.scapegoat_tree import traverse_insert
 from utils import debugmethods
 import queue
+import CacheModelNaive as cache
 
 #@debugmethods
 class Tier(object):
@@ -197,4 +198,113 @@ class Server(Tier):
                     self.communicator.send(order_query, 'order_query')
             else:
                 raise ValueError('Order query sent from sensor has non 1 or 0 value')
+
+class dSensor(object):
+    def __init__(self, data_queue_len, distribution, cache_len):
+        super(Sensor,self).__init__('Sensor',Communicator())
+        self.data_gen = DataGenerator(distribution)
+        self.__sk = 0 # A dummy secret key that isn't used or properly initialized (yet)
+        self.num_data_sent = 0
+        self.num_gen = 0
+        self.comp_req_queue = queue.Queue(1)
+        self.data_queue = queue.Queue(data_queue_len)
+        self.insert_round_trips = []
+        self.still_sending = False
+        self.cache = cache.CacheModel(cache_len)
+
+
+    def generate_data(self):
+        # Enqueue data for low priority sending 
+        self.num_gen += 1
+        plaintxt = self.data_gen.get_next() 
+        if len(self.cache.outgoing_messages) < 3 and !self.cache.waiting_on_insert[0]:
+            cache.insert(plaintxt)
+
+        # If sensor can't process immediately, enqueue 
+        try:
+            self.data_queue.put_nowait(cipher)
+            self.num_data_sent += 1
+        except queue.Full:
+            # If there is not room in the queue drop data
+            return
+
+    def send_message(self):
+        if len(self.cache.outgoing_messages > 0):
+            message2send = self.cache.outgoing_messages.pop(0)
+            # Keep track of the number of round trips to deliver the message
+            if self.still_sending:
+                self.insert_round_trips[-1] += 1
+            else:
+                self.insert_round_trips.append(1)
+            if message2send.start_flag:
+                self.still_sending = True
+            if message2send.end_flag:
+                self.still_sending = False
+            self.communicator.send(((message2send.entry, message2send.start_flag, message2send.end_flag), message2send.messageType)
+            return
+
+    def receive_message(self):
+        packet = self.communicator.read()
+        if packet is None:
+            return
+        elif packet.call_type != "insertResponse":
+            raise ValueError("Higher tiers only send insert Responses")
+        else:
+            # continue inserted where we left off
+            waiting, index, plaintxt = self.cache.waiting_on_insert
+            assert(waiting)
+            entry = packet.data
+            self.cache.merge([entry])
+            self.cache.insert(plaintxt, index)
+
+
+class dGateway(object):
+    def __init__():
+        super(Gateway,self).__init__('Gateway',Communicator())
+        rebalance_entries = []
+        rebalance_coherent_entries = []
+        message2send = None
+        self.cache = cache.CacheModel()
+
+    def send_message(self):
+        # Check if there is a message to send
+        if message2send is not None:
+            self.communicator.send(message2send.entry, message2send.messageType)
+
+    def receive_message(self):
+        packet = self.communicator.read()
+        if packet is None:
+            return
+        else: 
+            entry = packet.data[0]
+            start_flag = packet.data[1]
+            end_flag = packet.data[2]
+
+        if packet.call_type == "insertRequest":
+            self.message2send = self.cache.resolve_insert_request(entry) # For insert requests entry is an encoding 
+        elif packet.call_type == "rebalanceCoherencyRequest":
+            if start_flag:
+                assert(self.rebalance_coherent_entries == [])
+                self.rebalance_coherent_entries = [entry]
+            elif !start_flag and !end_flag:
+                self.rebalance_coherent_entries.append(entry)
+            else: # (just end flag)
+                self.cache.resolve_rebalance_coherence(self.rebalance_coherent_entries))
+                self.rebalance_coherent_entries = []
+        elif packet.call_type == "rebalanceNonLocalRequest":
+            if start_flag:
+                assert(self.rebalance_entries == [])
+                self.rebalance_entries = [entry]
+            elif !start_flag and !end_flag:
+                self.cache.rebalance_entries.append(entry)
+            else: # (just end flag)
+                self.cache.resolve_rebalance_request(self.rebalance_entries)
+                self.rebalance_entries = []
+        elif packet.call_type == "evictionRequest":
+            entry = packet.data[0]
+            self.cache.merge([entry])
+        else:
+            raise ValueError("Unrecognized packet type sent to gateway")
+
+
 
