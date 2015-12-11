@@ -5,7 +5,7 @@ from .DataGenerator import DataGenerator
 from datastruct.scapegoat_tree import traverse_insert
 from utils import debugmethods
 import queue
-import CacheModelNaive as cache
+import cache.CacheModelNaive as cache
 
 #@debugmethods
 class Tier(object):
@@ -199,9 +199,9 @@ class Server(Tier):
             else:
                 raise ValueError('Order query sent from sensor has non 1 or 0 value')
 
-class dSensor(object):
+class dSensor(Tier):
     def __init__(self, data_queue_len, distribution, cache_len):
-        super(Sensor,self).__init__('Sensor',Communicator())
+        super(dSensor,self).__init__('Sensor',Communicator())
         self.data_gen = DataGenerator(distribution)
         self.__sk = 0 # A dummy secret key that isn't used or properly initialized (yet)
         self.num_data_sent = 0
@@ -217,7 +217,7 @@ class dSensor(object):
         # Enqueue data for low priority sending 
         self.num_gen += 1
         plaintxt = self.data_gen.get_next() 
-        if len(self.cache.outgoing_messages) < 3 and !self.cache.waiting_on_insert[0]:
+        if len(self.cache.outgoing_messages) < 3 and not self.cache.waiting_on_insert[0]:
             cache.insert(plaintxt)
 
         # If sensor can't process immediately, enqueue 
@@ -240,7 +240,7 @@ class dSensor(object):
                 self.still_sending = True
             if message2send.end_flag:
                 self.still_sending = False
-            self.communicator.send(((message2send.entry, message2send.start_flag, message2send.end_flag), message2send.messageType)
+            self.communicator.send((message2send.entry, message2send.start_flag, message2send.end_flag), message2send.messageType)
             return
 
     def receive_message(self):
@@ -258,9 +258,9 @@ class dSensor(object):
             self.cache.insert(plaintxt, index)
 
 
-class dGateway(object):
-    def __init__():
-        super(Gateway,self).__init__('Gateway',Communicator())
+class dGateway(Tier):
+    def __init__(self):
+        super(dGateway,self).__init__('Gateway',Communicator())
         rebalance_entries = []
         rebalance_coherent_entries = []
         message2send = None
@@ -286,16 +286,16 @@ class dGateway(object):
             if start_flag:
                 assert(self.rebalance_coherent_entries == [])
                 self.rebalance_coherent_entries = [entry]
-            elif !start_flag and !end_flag:
+            elif not start_flag and not end_flag:
                 self.rebalance_coherent_entries.append(entry)
             else: # (just end flag)
-                self.cache.resolve_rebalance_coherence(self.rebalance_coherent_entries))
+                self.cache.resolve_rebalance_coherence(self.rebalance_coherent_entries)
                 self.rebalance_coherent_entries = []
         elif packet.call_type == "rebalanceNonLocalRequest":
             if start_flag:
                 assert(self.rebalance_entries == [])
                 self.rebalance_entries = [entry]
-            elif !start_flag and !end_flag:
+            elif not start_flag and not end_flag:
                 self.cache.rebalance_entries.append(entry)
             else: # (just end flag)
                 self.cache.resolve_rebalance_request(self.rebalance_entries)
