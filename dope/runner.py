@@ -3,12 +3,18 @@ __author__ = 'lauril, wDaviau'
 import sys, os, argparse
 
 
-def run(numTics, dataTics, networkTics, data_queue_len, distribution):
+def run(numTics, dataTics, networkTics, data_queue_len, distribution, cacheLength):
     # import here because we need to set up syspath prior importing
     from mope.mope import mOPE_baseline
     
     # Run basline simulation
     mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, distribution)
+
+    from dope.dope import dOPE
+
+    # Run the current dOPE simulation (Naive cache model right now )
+    dOPE(numTics, dataTics, networkTics, data_queue_len, cacheLength, distribution)
+
 
 
 # def get_plot_data(numTics, dataTics, networkTics, data_queue_len, distribution):
@@ -33,6 +39,7 @@ if __name__ == "__main__":
     parser.add_argument("-ntics", "--networkTics", type=int, help= "Set the number of tics it takes for the network to send a message round trip")
     parser.add_argument("-qlen", "--data_queue_len", type=int, help= "Set the sensor's data queue length")
     parser.add_argument("-dist", "--distribution", help= "Set the data model of the simulation")
+    parser.add_argument("-cacheL", "--cacheLength", help= "Set the cache length of the dOPE sensor")
     args = parser.parse_args();
 
     # Set default values of arguments not taken from the command line
@@ -41,6 +48,7 @@ if __name__ == "__main__":
     networkTics = args.networkTics
     data_queue_len = args.data_queue_len
     distribution = args.distribution
+    cacheLength = args.cacheLength
     if (numTics is None):
       numTics = 1000
     if (dataTics is None):
@@ -48,8 +56,10 @@ if __name__ == "__main__":
     if (networkTics is None):
       networkTics = 1
     if (data_queue_len is None):
-      data_queue_len = 50
+      data_queue_len = 900
     if (distribution is None):
       distribution = 'random'
+    if (cacheLength is None):
+      cacheLength = 100
 
-    sys.exit(run(numTics, dataTics, networkTics, data_queue_len, distribution))
+    sys.exit(run(numTics, dataTics, networkTics, data_queue_len, distribution, cacheLength))

@@ -153,6 +153,7 @@ class CacheModel(object):
     # Finding elements to evict could be much more intelligent than lru (locality missing)
     lru_entries = sorted_entries[:num_evictions]
     self.cache = [x for x in self.cache if not x in lru_entries]
+    self.current_size = len(self.cache)
     for entry in lru_entries:
       self.outgoing_messages.append(OutgoingMessage(messageType[4], entry))
     return lru_entries
@@ -184,12 +185,11 @@ class CacheModel(object):
   ## Go back through all entries effected by the addition of the entry
   ## with the provided encoding and update their subtree size fields
   def _update_parent_sizes(self, encoding):
-    level = 1
-    self.cache[0].subtree_size += 1
+    level = 0
     while (level <= len(encoding)):
       next_index = self._index_of_encoding(encoding[:level])
-      self.cache[next_index].subtree_size += 1
-      current_index = next_index
+      if next_index is not None:
+        self.cache[next_index].subtree_size += 1
       level += 1
 
   ## Internal Method update_parent_sizes_list
@@ -314,6 +314,8 @@ class CacheModel(object):
     start_encoding = root_entry.encoding
     subtree_to_send = [x for x in self.cache if x.encoding[:len(start_encoding)]== start_encoding]
     subtree_to_send = sorted(subtree_to_send, key = lambda x: len(x.encoding))
+    print("Reblance coherence")
+    print("Number of repl enc sent " + str(len(subtree_to_send)))
     self.outgoing_messages.append(OutgoingMessage(messageType[2], subtree_to_send[0], start_flag = True))
     for entry in subtree_to_send[1:len(subtree_to_send)-1]:
       self.outgoing_messages.append(OutgoingMessage(messageType[2], entry))
@@ -327,9 +329,18 @@ class CacheModel(object):
   def resolve_rebalance_coherence(self, subtree):
     root_encoding = subtree[0].encoding
     # Delete any stale entries
+    old_size = len(self.cache)
     self.cache = [x for x in self.cache if x.encoding[:len(root_encoding)] != root_encoding]
+    mid_size = len(self.cache)
     # Merge in new entries
     self.merge(subtree) 
+    self.current_size = len(self.cache)
+    new_size = len(self.cache)
+    # if (new_size < old_size):
+    #   print("Old size:" + str(old_size))
+    #   print("New size:" + str(new_size))
+    #   print("Mid size:" + str(mid_size))
+    #   print("Number of replacement encodings sent " + str(len(subtree))+ "\n")
 
   ## Internal Method rebalance_request
   ## ---------------------------------
@@ -340,10 +351,11 @@ class CacheModel(object):
     # Need to do an eviction too 
     subtree_to_evict = [x for x in self.cache if x.encoding[:len(start_encoding)]== start_encoding]
     self.cache = [x for x in self.cache if not x in subtree_to_evict] # Evict entries
+    self.current_size = len(self.cache)
     self.outgoing_messages.append(OutgoingMessage(messageType[3], root_entry, start_flag = True))
-    for entry in subtree_to_evict[1:len(subtree_to_send)-1]:
-      self.outgoing_messages.append(OutgoingMessage(messageType[3]), entry)
-    self.outgoing_messages.append(OutgoingMessage(messageType[3]), subtree_to_evict[-1], end_flag = True)
+    for entry in subtree_to_evict[1:len(subtree_to_evict)-1]:
+      self.outgoing_messages.append(OutgoingMessage(messageType[3], entry))
+    self.outgoing_messages.append(OutgoingMessage(messageType[3], subtree_to_evict[-1], end_flag = True))
 
 
   ## Internal Method filter_cache_occupancy
@@ -370,6 +382,7 @@ class CacheModel(object):
     filter(self._filter_cache_occupancy, incoming_entries)
     self.cache.extend(incoming_entries)
     self.cache.sort()
+    self.current_size = len(self.cache)
 
   ## Internal Method rebalance_node
   ## ------------------------------
@@ -400,7 +413,7 @@ class CacheModel(object):
     else:
       # Evict this subtree and request that the next level of the hierarchy 
       # handle rebalancing
-      self._rebalance_request(rebalanced_subtree[0])
+      self._rebalance_request(index)
 
   ## Method rebalance
   ## ----------------
@@ -424,15 +437,17 @@ class CacheModel(object):
       print("Insert should not register unbalanced if no scapegoat can be found") 
 
 
- ## Method resolve_rebalance_request
+  ## Method resolve_rebalance_request
   ##---------------------------------
   ## Used by a higher tier space to merge into its cache a list of entries and
   ## perform a rebalance starting at the node with the provided encoding
+  ## Note subtree is ordered with the root at the head of the list
   def resolve_rebalance_request(self, subtree):
-    root_tree = subtree[0].encoding
+    root_encoding = subtree[0].encoding
     self.merge(subtree)
     root_index = self._index_of_encoding(root_encoding)
     assert(self._subtree_in_cache(root_index))
+    index = self._index_of_encoding(root_encoding)
     self._rebalance_node(index)
 
 

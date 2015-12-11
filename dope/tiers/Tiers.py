@@ -21,7 +21,7 @@ class Tier(object):
     def link(self,other_tier,other_tier2=None):
         self.communicator.connect(other_tier.communicator)
         other_tier.communicator.connect(self.communicator)
-        if self.space == 'Gateway':
+        if self.communicator2 is not None:
             self.communicator2.connect(other_tier2.communicator)
             other_tier2.communicator.connect(self.communicator2)
 
@@ -218,18 +218,19 @@ class dSensor(Tier):
         self.num_gen += 1
         plaintxt = self.data_gen.get_next() 
         if len(self.cache.outgoing_messages) < 3 and not self.cache.waiting_on_insert[0]:
-            cache.insert(plaintxt)
+            self.cache.insert(plaintxt)
+            self.num_data_sent += 1
 
         # If sensor can't process immediately, enqueue 
         try:
-            self.data_queue.put_nowait(cipher)
+            self.data_queue.put_nowait(plaintxt)
             self.num_data_sent += 1
         except queue.Full:
             # If there is not room in the queue drop data
             return
 
     def send_message(self):
-        if len(self.cache.outgoing_messages > 0):
+        if len(self.cache.outgoing_messages) > 0:
             message2send = self.cache.outgoing_messages.pop(0)
             # Keep track of the number of round trips to deliver the message
             if self.still_sending:
@@ -261,14 +262,14 @@ class dSensor(Tier):
 class dGateway(Tier):
     def __init__(self):
         super(dGateway,self).__init__('Gateway',Communicator())
-        rebalance_entries = []
-        rebalance_coherent_entries = []
-        message2send = None
+        self.rebalance_entries = []
+        self.rebalance_coherent_entries = []
+        self.message2send = None
         self.cache = cache.CacheModel()
 
     def send_message(self):
         # Check if there is a message to send
-        if message2send is not None:
+        if self.message2send is not None:
             self.communicator.send(message2send.entry, message2send.messageType)
 
     def receive_message(self):
@@ -296,7 +297,7 @@ class dGateway(Tier):
                 assert(self.rebalance_entries == [])
                 self.rebalance_entries = [entry]
             elif not start_flag and not end_flag:
-                self.cache.rebalance_entries.append(entry)
+                self.rebalance_entries.append(entry)
             else: # (just end flag)
                 self.cache.resolve_rebalance_request(self.rebalance_entries)
                 self.rebalance_entries = []
