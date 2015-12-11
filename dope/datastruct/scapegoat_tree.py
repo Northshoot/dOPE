@@ -44,6 +44,7 @@ class SGTree:
     
 
 
+
 ###############################################################
 # These are the expected insert and search functions when the #
 # values are comparable by the caller                         #
@@ -58,6 +59,10 @@ def search(node,val):
     return search(bst.l,val)
   elif node.data < val:
     return search(bst.r,val)
+
+
+
+            
 
 
 # Determine the size of the tree with node as the root
@@ -152,6 +157,9 @@ def insert(sgtree,val):
   new_root = _insert(sgtree,sgtree.root,val,0)[1]
   sgtree.root = new_root
 
+def enc_insert(sgtree,val,encoding):
+  new_root = _traverse_insert(sgtree, sgtree.root, encoding, val, 0)[2]
+  sgtree.root = new_root
  
 
 
