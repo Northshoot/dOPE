@@ -1,6 +1,51 @@
     #import pdb; pdb.set_trace()
 from copy import copy
 import math
+from  datastruct.scapegoat_tree import SGTree, enc_insert
+
+# Strip enc_root from enc.  If they don't match at the start return None
+def strip(enc_root, enc):
+  if enc[:len(enc_root)] != enc_root:
+    return None
+  else: 
+    return enc[len(enc_root):]
+
+# For non-connected cache convert into a forest
+def convert_cache_to_forest(cache):
+  cache = sorted(cache, key=lambda x:len(x.encoding))
+  trees = []
+  encs = []
+  if cache == []:
+    print([])
+    return
+  trees.append(SGTree(cache[0].cipher_text))
+  encs.append([])
+  for elt in cache[1:]:
+    in_tree = 0
+    success = False
+    # Insert on the first tree that will accept it
+    while in_tree < len(trees) and not success:
+      enc = strip(encs[in_tree], elt.encoding)
+      if enc is None:
+        in_tree += 1
+        continue
+      try:
+        enc_insert(trees[in_tree], elt.cipher_text, enc)
+        success = True
+      except ValueError as e:
+        # current encoding tree
+        in_tree += 1
+ 
+    # Insert doesn't work on anyone else? Add a new tree to trees
+    if not success:
+      trees.append(SGTree(elt.cipher_text))
+      encs.append(elt.encoding)
+
+  for idx in range(len(trees)):
+    print("\n")
+    print(trees[idx])
+    print("Encoding: " + str(encs[idx]))
+    print("\n")
 
 def decrypt(cipher):
   # Dummy decryption
@@ -314,8 +359,6 @@ class CacheModel(object):
     start_encoding = root_entry.encoding
     subtree_to_send = [x for x in self.cache if x.encoding[:len(start_encoding)]== start_encoding]
     subtree_to_send = sorted(subtree_to_send, key = lambda x: len(x.encoding))
-    print("Reblance coherence")
-    print("Number of repl enc sent " + str(len(subtree_to_send)))
     self.outgoing_messages.append(OutgoingMessage(messageType[2], subtree_to_send[0], start_flag = True))
     for entry in subtree_to_send[1:len(subtree_to_send)-1]:
       self.outgoing_messages.append(OutgoingMessage(messageType[2], entry))
@@ -429,12 +472,16 @@ class CacheModel(object):
       # Find scapegoat node
       level = len(encoding)
       while (level >= 0):
-        index =  self._index_of_encoding(encoding[:level])
+        index = self._index_of_encoding(encoding[:level])
         if self._is_scapegoat_node(index):
           self._rebalance_node(index)
           return
         level -= 1
-      print("Insert should not register unbalanced if no scapegoat can be found") 
+      #print("Insert should not register unbalanced if no scapegoat can be found") 
+      #print(self.cache[self._index_of_encoding(encoding)])
+      #print(encoding)
+      #convert_cache_to_forest(self.cache)
+
 
 
   ## Method resolve_rebalance_request

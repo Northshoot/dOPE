@@ -210,6 +210,7 @@ class dSensor(Tier):
         self.data_queue = queue.Queue(data_queue_len)
         self.insert_round_trips = []
         self.still_sending = False
+        self.sending_idx = 0
         self.cache = cache.CacheModel(cache_len)
 
 
@@ -218,6 +219,7 @@ class dSensor(Tier):
         self.num_gen += 1
         plaintxt = self.data_gen.get_next() 
         if len(self.cache.outgoing_messages) < 3 and not self.cache.waiting_on_insert[0]:
+            self.insert_round_trips.append(0)
             self.cache.insert(plaintxt)
             self.num_data_sent += 1
 
@@ -233,14 +235,14 @@ class dSensor(Tier):
         if len(self.cache.outgoing_messages) > 0:
             message2send = self.cache.outgoing_messages.pop(0)
             # Keep track of the number of round trips to deliver the message
-            if self.still_sending:
-                self.insert_round_trips[-1] += 1
-            else:
-                self.insert_round_trips.append(1)
+            
             if message2send.start_flag:
                 self.still_sending = True
+                self.sending_idx = len(self.insert_round_trips)-1
             if message2send.end_flag:
                 self.still_sending = False
+            if self.still_sending:
+                self.insert_round_trips[self.sending_idx] += 1
             self.communicator.send((message2send.entry, message2send.start_flag, message2send.end_flag), message2send.messageType)
             return
 
@@ -252,6 +254,7 @@ class dSensor(Tier):
             raise ValueError("Higher tiers only send insert Responses")
         else:
             # continue inserted where we left off
+            print("Doing continued insert")
             waiting, index, plaintxt = self.cache.waiting_on_insert
             assert(waiting)
             entry = packet.data
@@ -289,7 +292,8 @@ class dGateway(Tier):
                 self.rebalance_coherent_entries = [entry]
             elif not start_flag and not end_flag:
                 self.rebalance_coherent_entries.append(entry)
-            else: # (just end flag)
+            else: # (end flag)
+                self.rebalance_coherent_entries.append(entry)
                 self.cache.resolve_rebalance_coherence(self.rebalance_coherent_entries)
                 self.rebalance_coherent_entries = []
         elif packet.call_type == "rebalanceNonLocalRequest":
@@ -298,7 +302,8 @@ class dGateway(Tier):
                 self.rebalance_entries = [entry]
             elif not start_flag and not end_flag:
                 self.rebalance_entries.append(entry)
-            else: # (just end flag)
+            else: # (end flag)
+                self.rebalance_entries.append(entry)
                 self.cache.resolve_rebalance_request(self.rebalance_entries)
                 self.rebalance_entries = []
         elif packet.call_type == "evictionRequest":
