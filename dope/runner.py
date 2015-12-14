@@ -12,10 +12,10 @@ def run(numTics, dataTics, networkTics, data_queue_len, distribution, cacheLengt
 
     from dope.dope import dOPE
 
+   
     # Run the current dOPE simulation (Naive cache model right now )
     dOPE(numTics, dataTics, networkTics, data_queue_len, cacheLength, distribution)
-
-
+    
 
 # def get_plot_data(numTics, dataTics, networkTics, data_queue_len, distribution):
 #     # import here because we need to set up syspath prior importing
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument("-ntics", "--networkTics", type=int, help= "Set the number of tics it takes for the network to send a message round trip")
     parser.add_argument("-qlen", "--data_queue_len", type=int, help= "Set the sensor's data queue length")
     parser.add_argument("-dist", "--distribution", help= "Set the data model of the simulation")
-    parser.add_argument("-cacheL", "--cacheLength", help= "Set the cache length of the dOPE sensor")
+    parser.add_argument("-cacheL", "--cacheLength", type=int, help= "Set the cache length of the dOPE sensor")
     args = parser.parse_args();
 
     # Set default values of arguments not taken from the command line

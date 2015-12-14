@@ -198,6 +198,7 @@ class CacheModel(object):
     # Finding elements to evict could be much more intelligent than lru (locality missing)
     lru_entries = sorted_entries[:num_evictions]
     self.cache = [x for x in self.cache if not x in lru_entries]
+    self.cache.sort()
     self.current_size = len(self.cache)
     for entry in lru_entries:
       self.outgoing_messages.append(OutgoingMessage(messageType[4], entry))
