@@ -79,9 +79,9 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len, distribution
     if tic % networkTics == 0:
       sensor.receive_message()
       sensor.send_message()
-      print("Sensor Tree ------------------------------------------------")
-      convert_cache_to_forest(sensor.cache.cache)
-      print(sensor.cache.current_size)
+      #print("Sensor Tree ------------------------------------------------")
+      #convert_cache_to_forest(sensor.cache.cache)
+      #print(sensor.cache.current_size)
       gateway.receive_message()
       #print("Server Tree ------------------------------------------------")
       #convert_cache_to_forest(gateway.cache.cache)

@@ -218,7 +218,7 @@ class dSensor(Tier):
         # Enqueue data for low priority sending 
         self.num_gen += 1
         plaintxt = self.data_gen.get_next() 
-        if len(self.cache.outgoing_messages) < 3 and not self.cache.waiting_on_insert[0]:
+        if len(self.cache.outgoing_messages) < 1 and not self.cache.waiting_on_insert[0]:
             self.insert_round_trips.append(0)
             self.cache.insert(plaintxt)
             self.num_data_sent += 1
@@ -250,11 +250,11 @@ class dSensor(Tier):
         packet = self.communicator.read()
         if packet is None:
             return
-        elif packet.call_type != "insertResponse":
+        elif packet.call_type != "insert":
             raise ValueError("Higher tiers only send insert Responses")
         else:
             # continue inserted where we left off
-            print("Doing continued insert")
+            logging.debug("Doing continued insert")
             waiting, index, plaintxt = self.cache.waiting_on_insert
             assert(waiting)
             entry = packet.data
@@ -266,7 +266,6 @@ class dGateway(Tier):
     def __init__(self):
         super(dGateway,self).__init__('Gateway',Communicator())
         self.rebalance_entries = []
-        self.rebalance_coherent_entries = []
         self.message2send = None
         self.cache = cache.CacheModel()
 
@@ -274,6 +273,7 @@ class dGateway(Tier):
         # Check if there is a message to send
         if self.message2send is not None:
             self.communicator.send(message2send.entry, message2send.messageType)
+            self.message2send = None
 
     def receive_message(self):
         packet = self.communicator.read()
@@ -284,19 +284,9 @@ class dGateway(Tier):
             start_flag = packet.data[1]
             end_flag = packet.data[2]
 
-        if packet.call_type == "insertRequest":
+        if packet.call_type == "insert":
             self.message2send = self.cache.resolve_insert_request(entry) # For insert requests entry is an encoding 
-        elif packet.call_type == "rebalanceCoherencyRequest":
-            if start_flag:
-                assert(self.rebalance_coherent_entries == [])
-                self.rebalance_coherent_entries = [entry]
-            elif not start_flag and not end_flag:
-                self.rebalance_coherent_entries.append(entry)
-            else: # (end flag)
-                self.rebalance_coherent_entries.append(entry)
-                self.cache.resolve_rebalance_coherence(self.rebalance_coherent_entries)
-                self.rebalance_coherent_entries = []
-        elif packet.call_type == "rebalanceNonLocalRequest":
+        elif packet.call_type == "rebalance":
             if start_flag:
                 assert(self.rebalance_entries == [])
                 self.rebalance_entries = [entry]
@@ -304,9 +294,9 @@ class dGateway(Tier):
                 self.rebalance_entries.append(entry)
             else: # (end flag)
                 self.rebalance_entries.append(entry)
-                self.cache.resolve_rebalance_request(self.rebalance_entries)
+                self.cache.rebalance_request(self.rebalance_entries)
                 self.rebalance_entries = []
-        elif packet.call_type == "evictionRequest":
+        elif packet.call_type == "eviction" or packet.call_type == "sync":
             entry = packet.data[0]
             self.cache.merge([entry])
         else:
