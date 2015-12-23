@@ -200,7 +200,13 @@ class Server(Tier):
                 raise ValueError('Order query sent from sensor has non 1 or 0 value')
 
 class dSensor(Tier):
-    def __init__(self, data_queue_len, distribution, cache_len):
+    '''
+    Sensor class in dOPE hierarchy.  Equipped to generate data and
+    insert into the encoding cache or enqueue / drop data if inserts 
+    are blocking and to send rebalance, insert, evict and sync messages
+    as well as to receive insert response messages.
+    '''
+    def __init__(self, data_queue_len, distribution, cache_len, out_file):
         super(dSensor,self).__init__('Sensor',Communicator())
         self.data_gen = DataGenerator(distribution)
         self.__sk = 0 # A dummy secret key that isn't used or properly initialized (yet)
@@ -211,16 +217,26 @@ class dSensor(Tier):
         self.insert_round_trips = []
         self.still_sending = False
         self.sending_idx = 0
-        self.cache = cache.CacheModel(cache_len)
-
+        self.cache = cache.CacheModel(cache_len, out_file)
 
     def generate_data(self):
+        ''' Method generate_data
+        ------------------------
+        Take the next data point from the data model set at init.
+        Either insert, pipe data through the queue or drop
+        '''
         # Enqueue data for low priority sending 
         self.num_gen += 1
         plaintxt = self.data_gen.get_next() 
         if len(self.cache.outgoing_messages) < 1 and not self.cache.waiting_on_insert[0]:
             self.insert_round_trips.append(0)
-            self.cache.insert(plaintxt)
+            # If queue is not empty then pop one off and bri
+            if !self.data_queue.empty():
+                popped_ptext = self.data_queue.get_nowait()
+                self.data_queue.put_nowait(plaintxt)
+                self.cache.insert(popped_ptext)
+            else:
+                self.cache.insert(plaintxt)
             self.num_data_sent += 1
 
         # If sensor can't process immediately, enqueue 
@@ -232,10 +248,14 @@ class dSensor(Tier):
             return
 
     def send_message(self):
+        ''' Method send_message
+        -------------------------
+        If a message is available from the cache to send then pass 
+        along to the gateway
+        '''
         if len(self.cache.outgoing_messages) > 0:
             message2send = self.cache.outgoing_messages.pop(0)
             # Keep track of the number of round trips to deliver the message
-            
             if message2send.start_flag:
                 self.still_sending = True
                 self.sending_idx = len(self.insert_round_trips)-1
@@ -243,10 +263,21 @@ class dSensor(Tier):
                 self.still_sending = False
             if self.still_sending:
                 self.insert_round_trips[self.sending_idx] += 1
-            self.communicator.send((message2send.entry, message2send.start_flag, message2send.end_flag), message2send.messageType)
-            return
+            self.communicator.send((message2send.entry, message2send.start_flag,
+                                    message2send.end_flag),
+                                  message2send.messageType)
+        elif len(self.cache.sync_messages) > 0:
+            message2send = self.cache.outgoing_messages.pop(0)
+            self.cache.acknowledge_sync(message2send.entry)
+            self.communicator.send((message2send.entry, False, False),
+                                   message2send.messageType)
 
     def receive_message(self):
+        ''' Method receive_message
+        --------------------------
+        If a message was sent to the sensor process and change state
+        accordingly
+        '''
         packet = self.communicator.read()
         if packet is None:
             return
@@ -263,19 +294,34 @@ class dSensor(Tier):
 
 
 class dGateway(Tier):
-    def __init__(self):
+    '''
+    Gateway class in dOPE hierarchy.  Equipped to receive insert, 
+    eviction, rebalance and sync messages and to send back insert 
+    replies.
+    '''
+    def __init__(self, out_file):
         super(dGateway,self).__init__('Gateway',Communicator())
         self.rebalance_entries = []
         self.message2send = None
-        self.cache = cache.CacheModel()
+        self.cache = cache.CacheModel(None, out_file)
 
     def send_message(self):
+        ''' Method send_message
+        -----------------------
+        If a message is availabe from the cache pass along to the 
+        sensor
+        '''
         # Check if there is a message to send
         if self.message2send is not None:
             self.communicator.send(message2send.entry, message2send.messageType)
             self.message2send = None
 
     def receive_message(self):
+        ''' Method receive_message
+        --------------------------
+        If a message is sent from the sensor process and change state 
+        at the gateway
+        '''
         packet = self.communicator.read()
         if packet is None:
             return

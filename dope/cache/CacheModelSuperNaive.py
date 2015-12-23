@@ -1,4 +1,4 @@
-from copy import copy
+from copy import deepcopy
 import math
 import logging
 
@@ -213,12 +213,9 @@ class CacheModel(object):
     def _enc_copy(self, list_to_copy):
         ''' Internal Method _enc_copy
         -----------------------------
-            Make a deep copy of a list
+            Make an encoding copy.  Uses python built-in [:] operator
         '''
-        new_list = []
-        for entry in list_to_copy:
-            new_list.append(entry)
-        return new_list
+        return list_to_copy[:]
 
     def _left_child(self, index):
         '''Internal Method left_child
@@ -267,7 +264,8 @@ class CacheModel(object):
         self.current_size = len(self.cache)
         for entry in lru_entries:
             self.logger.info("Adding eviction to outgoing messages")
-            self.outgoing_messages.append(OutgoingMessage(messageType[3],entry))
+            self.outgoing_messages.append(OutgoingMessage(messageType[3], 
+                                          copy.deepcopy(entry)))
 
     def _handle_miss(self, subtree_root, next_encoding, plaintext):
         '''Internal Method handle_miss
@@ -281,7 +279,7 @@ class CacheModel(object):
         self.waiting_on_insert = (True, subtree_root, plaintext)
         self.logger.info("Adding insert request to outgoing messages")
         self.outgoing_messages.append(OutgoingMessage(messageType[0],
-                                      next_encoding))
+                                      self._copy_enc(next_encoding)))
 
     def _cachetable_add(self, new_ciphertext, new_entry_encoding):
         ''' Internal Method cachetable_add
@@ -318,7 +316,7 @@ class CacheModel(object):
         Called during a sensor rebalance to evict the subtree rooted
         at the provided index to prepare for a nonlocal rebalance.
         '''
-        root_entry = self.cache[index]
+        root_entry = copy.deepcopy(self.cache[index])
         start_encoding = root_entry.encoding
         subtree_to_evict = [x for x in self.cache if 
                             x.encoding[:len(start_encoding)] == start_encoding]
@@ -337,10 +335,10 @@ class CacheModel(object):
         for entry in subtree_to_evict[1:len(subtree_to_evict)-1]:
             self.logger.info("Adding rebalance request to outgoing messages")
             self.outgoing_messages.append(OutgoingMessage(messageType[1],
-                                                          entry))
+                                          copy.deepcopy(entry)))
         self.outgoing_messages.append(OutgoingMessage(messageType[1], 
-                                                      subtree_to_evict[-1],
-                                                      end_flag=True))
+                                      copy.deepcopy(subtree_to_evict[-1]),
+                                      end_flag=True))
         self.logger.info("Adding rebalance request to outgoing messages")
 
     def _balanced_h(self):
@@ -369,15 +367,27 @@ class CacheModel(object):
                 return True
 
     def _filter_cache_occupancy(entry):
-        ''' Method filter_cache_occupancy 
-        ---------------------------------
+        ''' Internal Method filter_cache_occupancy 
+        ------------------------------------------
         Returns false if an entry with the same encoding exists in the
         cache
         '''
-        for y in self.cche:
+        for y in self.cache:
             if y.encoding == entry.encoding:
                 return False
         return True
+
+    def acknowledge_sync(entry):
+        ''' Method acknowledge_sync
+        ---------------------------
+        Flip the sync flag of the matching entry 
+        '''
+        index = _index_of_encoding(entry.encoding)
+        if self.cache[index].ciphertext != entry.ciphertext:
+            self.logger.error("Non-matching ciphertext while acking sync")
+        self.logger.info("Acknowledging that cipher %d is synced", 
+                         self.cache[index].ciphertext)
+        self.cache[index].sync = True
 
     def merge(self, incoming_entries):
         ''' Method merge
@@ -504,7 +514,8 @@ class CacheModel(object):
             self._evict(1)
         new_ciphertext = encrypt(new_plaintext)
         self._cachetable_add(new_ciphertext, new_entry_encoding)
-        new_entry = self.cache[self._index_of_encoding(new_entry_encoding)]
+        new_index = self._index_of_encoding(new_entry_encoding)
+        new_entry = copy.deepcopy(self.cache[new_index])
         self.sync_messages.append(OutgoingMessage(messageType[2], new_entry))
         self.rebalance(new_entry_encoding)
         
@@ -597,7 +608,7 @@ class CacheModel(object):
         if index is None:
             raise(ValueError("The server should have a record of every" +
                               "existing encoding"))
-        return OutgoingMessage(messageType[0], self.cache[index])
+        return OutgoingMessage(messageType[0], copy.deepcopy(self.cache[index]))
 
 
 
