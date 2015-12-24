@@ -24,12 +24,13 @@ def strip(enc_root, enc):
         return enc[len(enc_root):]
 
 # # For non-connected cache convert into a forest
-def convert_cache_to_forest(cache):
+def convert_cache_to_forest(cache, out_file):
     cache = sorted(cache, key=lambda x:len(x.encoding))
     trees = []
     encs = []
     if cache == []:
-        print([])
+        with open(out_file, "a") as logfile:
+            print([], file=logfile)
         return
     trees.append(SGTree(cache[0].cipher_text))
     encs.append([])
@@ -53,12 +54,12 @@ def convert_cache_to_forest(cache):
         if not success:
             trees.append(SGTree(elt.cipher_text))
             encs.append(elt.encoding)
-
-    for idx in range(len(trees)):
-        print("\n")
-        print(trees[idx])
-        print("Encoding: " + str(encs[idx]))
-        print("\n")
+    with open(out_file, "a") as logfile:
+        for idx in range(len(trees)):
+            print("\n", file=logfile)
+            print(str(trees[idx]), file=logfile)
+            print("Encoding: " + str(encs[idx]), file=logfile)
+            print("\n", file=logfile)
 
 
 
@@ -71,10 +72,16 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len, distribution
     tic = 0
     #event loop
     while tic < maxTics:
-        tic += 1
+        with open(sensor.cache.outfile, "a") as sensorF:
+            print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
+                  "---------------\n", file=sensorF)
+        with open(gateway.cache.outfile, "a") as gateF:
+            print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
+                  "---------------\n", file=gateF)
         # Generate data and place into queue
         if tic % dataTics == 0:
             sensor.generate_data()
+            convert_cache_to_forest(sensor.cache.cache, sensor.cache.outfile)
         # Send packets between devices
         if tic % networkTics == 0:
             sensor.receive_message()
@@ -82,6 +89,8 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len, distribution
 
             gateway.receive_message()
             gateway.send_message()
+            convert_cache_to_forest(gateway.cache.cache, gateway.cache.outfile)
+        tic += 1
    
 
     print("The resulting cache")

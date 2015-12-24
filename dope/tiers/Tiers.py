@@ -285,7 +285,6 @@ class dSensor(Tier):
             raise ValueError("Higher tiers only send insert Responses")
         else:
             # continue inserted where we left off
-            logging.debug("Doing continued insert")
             waiting, index, plaintxt = self.cache.waiting_on_insert
             assert(waiting)
             entry = packet.data
@@ -331,18 +330,28 @@ class dGateway(Tier):
             end_flag = packet.data[2]
 
         if packet.call_type == "insert":
+            self.cache.logger.info("Receiving insert request")
             self.message2send = self.cache.resolve_insert_request(entry) # For insert requests entry is an encoding 
         elif packet.call_type == "rebalance":
+            self.cache.logger.info("Receiving rebalance request")
             if start_flag:
+                self.cache.logger.info("First in a possible series of " +
+                                       "rebalance requests")
                 assert(self.rebalance_entries == [])
                 self.rebalance_entries = [entry]
             elif not start_flag and not end_flag:
                 self.rebalance_entries.append(entry)
             else: # (end flag)
+                self.cache.logger.info("Last rebalance request of the series")
                 self.rebalance_entries.append(entry)
                 self.cache.rebalance_request(self.rebalance_entries)
                 self.rebalance_entries = []
-        elif packet.call_type == "eviction" or packet.call_type == "sync":
+        elif packet.call_type == "eviction":
+            self.cache.logger.info("Receiving eviction message")
+            entry = packet.data[0]
+            self.cache.merge([entry])
+        elif packet.call_type == "sync":
+            self.cache.logger.info("Receiving sync message")
             entry = packet.data[0]
             self.cache.merge([entry])
         else:
