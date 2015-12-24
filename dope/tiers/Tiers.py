@@ -5,7 +5,7 @@ from .DataGenerator import DataGenerator
 from datastruct.scapegoat_tree import traverse_insert
 from utils import debugmethods
 import queue
-import cache.CacheModelNaive as cache
+import cache.CacheModelSuperNaive as cache
 
 #@debugmethods
 class Tier(object):
@@ -228,10 +228,10 @@ class dSensor(Tier):
         # Enqueue data for low priority sending 
         self.num_gen += 1
         plaintxt = self.data_gen.get_next() 
-        if len(self.cache.outgoing_messages) < 1 and not self.cache.waiting_on_insert[0]:
+        if len(self.cache.priority_messages) < 1 and not self.cache.waiting_on_insert[0]:
             self.insert_round_trips.append(0)
             # If queue is not empty then pop one off and bri
-            if !self.data_queue.empty():
+            if not self.data_queue.empty():
                 popped_ptext = self.data_queue.get_nowait()
                 self.data_queue.put_nowait(plaintxt)
                 self.cache.insert(popped_ptext)
@@ -253,8 +253,8 @@ class dSensor(Tier):
         If a message is available from the cache to send then pass 
         along to the gateway
         '''
-        if len(self.cache.outgoing_messages) > 0:
-            message2send = self.cache.outgoing_messages.pop(0)
+        if len(self.cache.priority_messages) > 0:
+            message2send = self.cache.priority_messages.pop(0)
             # Keep track of the number of round trips to deliver the message
             if message2send.start_flag:
                 self.still_sending = True
@@ -267,7 +267,7 @@ class dSensor(Tier):
                                     message2send.end_flag),
                                   message2send.messageType)
         elif len(self.cache.sync_messages) > 0:
-            message2send = self.cache.outgoing_messages.pop(0)
+            message2send = self.cache.sync_messages.pop(0)
             self.cache.acknowledge_sync(message2send.entry)
             self.communicator.send((message2send.entry, False, False),
                                    message2send.messageType)

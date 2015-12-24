@@ -46,8 +46,8 @@ def convert_cache_to_forest(cache):
                 enc_insert(trees[in_tree], elt.cipher_text, enc)
                 success = True
             except ValueError as e:
-            # current encoding tree
-            in_tree += 1
+                # current encoding tree
+                in_tree += 1
  
         # Insert doesn't work on anyone else? Add a new tree to trees
         if not success:
@@ -63,8 +63,8 @@ def convert_cache_to_forest(cache):
 
 
 def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len, distribution = 'random'):
-    sensor = dSensor(data_queue_len, distribution, cache_len)
-    gateway = dGateway()
+    sensor = dSensor(data_queue_len, distribution, cache_len, "dSensorCache.log")
+    gateway = dGateway("dGatewayCache.log")
 
     sensor.link(gateway)
     gateway.link(sensor)
@@ -84,23 +84,23 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len, distribution
             gateway.send_message()
    
 
-  print("The resulting cache")
-  sensor.cache.cache.sort(key = lambda x: len(x.encoding))
-  print(sensor.cache)
-  print("The number of data recorded by the system")
-  print(sensor.num_data_sent - sensor.data_queue.qsize())
-  print("The resulting tree(s) at the sensor")
-  convert_cache_to_forest(sensor.cache.cache)
-  print("The resulting cache at the gateway")
-  gateway.cache.cache.sort(key = lambda x: len(x.encoding))
-  print(gateway.cache)
-  convert_cache_to_forest(gateway.cache.cache)
+    print("The resulting cache")
+    sensor.cache.cache.sort(key = lambda x: len(x.encoding))
+    print(sensor.cache)
+    print("The number of data recorded by the system")
+    print(sensor.num_data_sent - sensor.data_queue.qsize())
+    print("The resulting tree(s) at the sensor")
+    convert_cache_to_forest(sensor.cache.cache)
+    print("The resulting cache at the gateway")
+    gateway.cache.cache.sort(key = lambda x: len(x.encoding))
+    print(gateway.cache)
+    convert_cache_to_forest(gateway.cache.cache)
 
 
-  print("Round Trip Times")
-  print(10)
+    # print("Round Trip Times")
+    # print(10)
 
-  with open("Round_trips_dope.csv", "w") as f:
-      for i in range(0,len(sensor.insert_round_trips)):
-          f.write(str(sensor.insert_round_trips[i])+"\n")
+    # with open("Round_trips_dope.csv", "w") as f:
+    #     for i in range(0,len(sensor.insert_round_trips)):
+    #         f.write(str(sensor.insert_round_trips[i])+"\n")
 

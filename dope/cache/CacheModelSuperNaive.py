@@ -1,4 +1,4 @@
-from copy import deepcopy
+import copy
 import math
 import logging
 
@@ -192,21 +192,21 @@ class CacheModel(object):
         sizes = ("Max Size: " + str(self.max_size) + "\nCurrent Size: " +
                  str(self.current_size) + "\n"
         )
-        outgoing_messages = ("Outgoing Messages: " + 
-                                 str(self.outgoing_messages) + "\n"
+        priority_messages = ("Outgoing Messages: " + 
+                                 str(self.priority_messages) + "\n"
         )
-        out_string = sizes + outgoing_messages
+        out_string = sizes + priority_messages
         for x in self.cache:
             out_string += str(x)
         return out_string
 
-    def _index_of_encoding(encoding):
+    def _index_of_encoding(self, encoding):
         ''' Internal Method index_of_encoding
         -------------------------------------
         Return the index of the provided encoding in the cache table
         '''
         for i,v in enumerate(self.cache):
-            if v.encoding == encoding
+            if v.encoding == encoding:
                 return i
         return None
 
@@ -264,7 +264,7 @@ class CacheModel(object):
         self.current_size = len(self.cache)
         for entry in lru_entries:
             self.logger.info("Adding eviction to outgoing messages")
-            self.outgoing_messages.append(OutgoingMessage(messageType[3], 
+            self.priority_messages.append(OutgoingMessage(messageType[3], 
                                           copy.deepcopy(entry)))
 
     def _handle_miss(self, subtree_root, next_encoding, plaintext):
@@ -278,7 +278,7 @@ class CacheModel(object):
             self._evict(1)
         self.waiting_on_insert = (True, subtree_root, plaintext)
         self.logger.info("Adding insert request to outgoing messages")
-        self.outgoing_messages.append(OutgoingMessage(messageType[0],
+        self.priority_messages.append(OutgoingMessage(messageType[0],
                                       self._copy_enc(next_encoding)))
 
     def _cachetable_add(self, new_ciphertext, new_entry_encoding):
@@ -302,15 +302,16 @@ class CacheModel(object):
         '''
         root_encoding = self.cache[index].encoding
         bad_entries = []
-        for entry in self.sync_messages:
+        for msg in self.sync_messages:
+            entry = msg.entry
             if entry.encoding[:len(root_encoding)] == root_encoding:
                 bad_entries.append(entry)
                 self.logger.info("Clearing sync # %d from outgoing syncs",
                              len(bad_entries))
-        self.sync_messages = [entry for entry in self.sync_messages if
-                              not entry in bad_entries]
+        self.sync_messages = [msg for msg in self.sync_messages if
+                              not msg.entry in bad_entries]
 
-    def _rebalance_request(index):
+    def _rebalance_request(self, index):
         ''' Internal Method purge_subtree
         ---------------------------------
         Called during a sensor rebalance to evict the subtree rooted
@@ -325,18 +326,18 @@ class CacheModel(object):
         self.current_size = len(self.cache)
         self.logger.info("Adding rebalance request to outgoing messages")
         if len(subtree_to_evict) == 1:
-            self.outgoing_messages.append(OutgoingMessage(messageType[1], 
+            self.priority_messages.append(OutgoingMessage(messageType[1], 
                                           root_entry, start_flag=True,
                                           end_flag=True))
             return
-        self.outgoing_messages.append(OutgoingMessage(messageType[1], 
+        self.priority_messages.append(OutgoingMessage(messageType[1], 
                                       root_entry, start_flag=True))
         
         for entry in subtree_to_evict[1:len(subtree_to_evict)-1]:
             self.logger.info("Adding rebalance request to outgoing messages")
-            self.outgoing_messages.append(OutgoingMessage(messageType[1],
+            self.priority_messages.append(OutgoingMessage(messageType[1],
                                           copy.deepcopy(entry)))
-        self.outgoing_messages.append(OutgoingMessage(messageType[1], 
+        self.priority_messages.append(OutgoingMessage(messageType[1], 
                                       copy.deepcopy(subtree_to_evict[-1]),
                                       end_flag=True))
         self.logger.info("Adding rebalance request to outgoing messages")
@@ -366,7 +367,7 @@ class CacheModel(object):
                 self.cache[index].subtree_size * self.sg_alpha):
                 return True
 
-    def _filter_cache_occupancy(entry):
+    def _filter_cache_occupancy(self, entry):
         ''' Internal Method filter_cache_occupancy 
         ------------------------------------------
         Returns false if an entry with the same encoding exists in the
@@ -377,16 +378,16 @@ class CacheModel(object):
                 return False
         return True
 
-    def acknowledge_sync(entry):
+    def acknowledge_sync(self, entry):
         ''' Method acknowledge_sync
         ---------------------------
         Flip the sync flag of the matching entry 
         '''
-        index = _index_of_encoding(entry.encoding)
-        if self.cache[index].ciphertext != entry.ciphertext:
+        index = self._index_of_encoding(entry.encoding)
+        if self.cache[index].cipher_text != entry.cipher_text:
             self.logger.error("Non-matching ciphertext while acking sync")
         self.logger.info("Acknowledging that cipher %d is synced", 
-                         self.cache[index].ciphertext)
+                         self.cache[index].cipher_text)
         self.cache[index].sync = True
 
     def merge(self, incoming_entries):
@@ -439,10 +440,10 @@ class CacheModel(object):
         the region of the encoding tree necessary to continue the
         the insert, or no change in the case a duplicate is found
         '''
-        if self.cache = []:
+        if self.cache == []:
             if self.current_size == 0:
                 self.logger.info("Inserting original root")
-                self.cache.append(CacheEntry(new_plaintext, [], 0, self.lru_tag))
+                self.cache.append(CacheEntry(new_plaintext, [], self.lru_tag))
                 self.lru_tag += 1
                 self.current_size += 1
                 return
@@ -507,7 +508,7 @@ class CacheModel(object):
             self.cache[current_index].has_one_child = False
         self._update_parent_sizes(new_entry_encoding)
         new_entry_encoding.append(0 if current_plaintext > 
-                                  new_plainttext else 1
+                                  new_plaintext else 1
                                  )
         if (self.max_size is not None and self.current_size == 
             self.max_size):
@@ -571,18 +572,18 @@ class CacheModel(object):
         -------------------------------------
         Return true if the entire subtree of the entry at index is in the cache
         '''
-        start_encoding = self.cache[index].encoding
+        start_encoding = self.cache[root_index].encoding
         subtree_in_cache = [x for x in self.cache if 
                             x.encoding[:len(start_encoding)] == 
                             start_encoding]
-        in_cache = len(subtree_in_cache) == self.cache[index].subtree_size
+        in_cache = len(subtree_in_cache) == self.cache[root_index].subtree_size
         if in_cache:
             self.logger.info("Subtree rooted at cipher %d is in the cache", 
-                             self.cache[index].cipher_text)
+                             self.cache[root_index].cipher_text)
         else:
             self.logger.info("Only %d elements of subtree rooted at cipher " +
-                             "%d in the cache", len_subtree_in_cache,
-                             self.cache[index].cipher_text)
+                             "%d in the cache", len(subtree_in_cache),
+                             self.cache[root_index].cipher_text)
         return in_cache
 
     def rebalance_request(self, subtree):
