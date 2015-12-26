@@ -227,10 +227,11 @@ class dSensor(Tier):
         '''
         # Enqueue data for low priority sending 
         self.num_gen += 1
-        plaintxt = self.data_gen.get_next() 
+        plaintxt = self.data_gen.get_next()
+        print(plaintxt)
         if len(self.cache.priority_messages) < 1 and not self.cache.waiting_on_insert[0]:
             self.insert_round_trips.append(0)
-            # If queue is not empty then pop one off and bri
+            # If queue is not empty then pop one off
             if not self.data_queue.empty():
                 popped_ptext = self.data_queue.get_nowait()
                 self.data_queue.put_nowait(plaintxt)
@@ -238,6 +239,7 @@ class dSensor(Tier):
             else:
                 self.cache.insert(plaintxt)
             self.num_data_sent += 1
+            return
 
         # If sensor can't process immediately, enqueue 
         try:

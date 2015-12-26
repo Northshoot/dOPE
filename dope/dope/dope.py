@@ -1,6 +1,6 @@
 __author__ = 'Wdaviau'
 from tiers.Tiers import dSensor, dGateway
-from  datastruct.scapegoat_tree import SGTree, enc_insert
+from  datastruct.binarytree import BSTree, enc_insert
 
 
 # For use comparing tree to verify rebalancing
@@ -10,11 +10,11 @@ from  datastruct.scapegoat_tree import SGTree, enc_insert
 def convert_cache_to_tree(cache):
     # sort cache by encoding length
     cache = sorted(cache, key = lambda x: len(x.encoding))
-    sgtree = SGTree(cache[0].cipher_text)
+    bstree = BSTree(cache[0].cipher_text)
     for elt in cache[1:]:
-        enc_insert(sgtree, elt.cipher_text, elt.encoding)
+        enc_insert(bstree, elt.cipher_text, elt.encoding)
 
-    return sgtree
+    return bstree
 
 # Strip enc_root from enc.  If they don't match at the start return None
 def strip(enc_root, enc):
@@ -23,7 +23,7 @@ def strip(enc_root, enc):
     else: 
         return enc[len(enc_root):]
 
-# # For non-connected cache convert into a forest
+# For non-connected cache convert into a forest
 def convert_cache_to_forest(cache, out_file):
     cache = sorted(cache, key=lambda x:len(x.encoding))
     trees = []
@@ -32,7 +32,7 @@ def convert_cache_to_forest(cache, out_file):
         with open(out_file, "a") as logfile:
             print([], file=logfile)
         return
-    trees.append(SGTree(cache[0].cipher_text))
+    trees.append(BSTree(cache[0].cipher_text))
     encs.append([])
     for elt in cache[1:]:
         in_tree = 0
@@ -66,7 +66,6 @@ def convert_cache_to_forest(cache, out_file):
 def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len, distribution = 'random'):
     sensor = dSensor(data_queue_len, distribution, cache_len, "dSensorCache.log")
     gateway = dGateway("dGatewayCache.log")
-
     sensor.link(gateway)
     gateway.link(sensor)
     tic = 0

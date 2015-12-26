@@ -126,6 +126,7 @@ class CacheEntry(object):
         self.is_leaf = True
         self.has_one_child = False
         self.lru = lru_tag
+        self.synced = False
 
     def __str__(self):
         selfstr =  ("-------------------------\nCiphertext:" + 
@@ -187,6 +188,7 @@ class CacheModel(object):
         fh = logging.FileHandler(logfile)
         self.logger.addHandler(fh)
         self.logger.setLevel(logging.INFO)
+        self.outfile = logfile
 
     def __str__(self):
         sizes = ("Max Size: " + str(self.max_size) + "\nCurrent Size: " +
@@ -324,21 +326,23 @@ class CacheModel(object):
         subtree_to_evict = sorted(subtree_to_evict, key=lambda x: len(x.encoding))
         self.cache = [x for x in self.cache if not x in subtree_to_evict]
         self.current_size = len(self.cache)
+        entries_to_send = [x for x in subtree_to_evict if not x.synced]
+        if entries_to_send == []:
+            return
         self.logger.info("Adding rebalance request to outgoing messages")
-        if len(subtree_to_evict) == 1:
+        if len(entries_to_send) == 1:
             self.priority_messages.append(OutgoingMessage(messageType[1], 
                                           root_entry, start_flag=True,
                                           end_flag=True))
             return
         self.priority_messages.append(OutgoingMessage(messageType[1], 
                                       root_entry, start_flag=True))
-        
-        for entry in subtree_to_evict[1:len(subtree_to_evict)-1]:
+        for entry in entries_to_send[1:len(entries_to_send)-1]:
             self.logger.info("Adding rebalance request to outgoing messages")
             self.priority_messages.append(OutgoingMessage(messageType[1],
                                           copy.deepcopy(entry)))
         self.priority_messages.append(OutgoingMessage(messageType[1], 
-                                      copy.deepcopy(subtree_to_evict[-1]),
+                                      copy.deepcopy(entries_to_send[-1]),
                                       end_flag=True))
         self.logger.info("Adding rebalance request to outgoing messages")
 
@@ -446,6 +450,8 @@ class CacheModel(object):
                 self.cache.append(CacheEntry(new_plaintext, [], self.lru_tag))
                 self.lru_tag += 1
                 self.current_size += 1
+                new_entry = copy.deepcopy(self.cache[0])
+                self.sync_messages.append(OutgoingMessage(messageType[2], new_entry))
                 return
             else: # Recover from rebalance at root 
                 self.logger.info("Recovering from rebalance at root")
