@@ -1,6 +1,7 @@
 __author__ = 'Wdaviau'
 from tiers.Tiers import dSensor, dGateway
 from  datastruct.binarytree import BSTree, enc_insert
+from time import time
 
 
 # For use comparing tree to verify rebalancing
@@ -63,9 +64,11 @@ def convert_cache_to_forest(cache, out_file):
 
 
 
-def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len, distribution = 'random'):
-    sensor = dSensor(data_queue_len, distribution, cache_len, "dSensorCache.log")
-    gateway = dGateway("dGatewayCache.log")
+def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len,
+         distribution = 'random'):
+    sensor = dSensor(data_queue_len, distribution, cache_len, 
+                     "dSensorCache" + str(time()) +".log")
+    gateway = dGateway("dGatewayCache" + str(time()) + ".log")
     sensor.link(gateway)
     gateway.link(sensor)
     tic = 0
@@ -81,6 +84,9 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len, distribution
         if tic % dataTics == 0:
             sensor.generate_data()
             convert_cache_to_forest(sensor.cache.cache, sensor.cache.outfile)
+            with open(sensor.cache.outfile, "a") as sensorF:
+                print(sensor.cache, file=sensorF)
+
         # Send packets between devices
         if tic % networkTics == 0:
             sensor.receive_message()
@@ -89,6 +95,8 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len, distribution
             gateway.receive_message()
             gateway.send_message()
             convert_cache_to_forest(gateway.cache.cache, gateway.cache.outfile)
+            with open(gateway.cache.outfile, "a") as gateF:
+                print(gateway.cache, file=gateF)
         tic += 1
    
 

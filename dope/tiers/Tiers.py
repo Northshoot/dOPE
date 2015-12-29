@@ -303,6 +303,7 @@ class dGateway(Tier):
     def __init__(self, out_file):
         super(dGateway,self).__init__('Gateway',Communicator())
         self.rebalance_entries = []
+        self.root_enc = None
         self.message2send = None
         self.cache = cache.CacheModel(None, out_file)
 
@@ -314,7 +315,8 @@ class dGateway(Tier):
         '''
         # Check if there is a message to send
         if self.message2send is not None:
-            self.communicator.send(message2send.entry, message2send.messageType)
+            self.communicator.send(self.message2send.entry, 
+                                   self.message2send.messageType)
             self.message2send = None
 
     def receive_message(self):
@@ -333,29 +335,33 @@ class dGateway(Tier):
 
         if packet.call_type == "insert":
             self.cache.logger.info("Receiving insert request")
-            self.message2send = self.cache.resolve_insert_request(entry) # For insert requests entry is an encoding 
+            encoding = entry
+            self.message2send = self.cache.insert_request(encoding) 
         elif packet.call_type == "rebalance":
             self.cache.logger.info("Receiving rebalance request")
             if start_flag:
                 self.cache.logger.info("First in a possible series of " +
                                        "rebalance requests")
-                assert(self.rebalance_entries == [])
-                self.rebalance_entries = [entry]
-            elif not start_flag and not end_flag:
+                assert(self.rebalance_entries == [] and self.root_enc is None)
+                # Initial rebalance entry is the root encoding
+                self.root_enc = entry
+            if not start_flag:
                 self.rebalance_entries.append(entry)
-            else: # (end flag)
+            if end_flag:
                 self.cache.logger.info("Last rebalance request of the series")
-                self.rebalance_entries.append(entry)
-                self.cache.rebalance_request(self.rebalance_entries)
+                self.cache.rebalance_request(self.rebalance_entries, 
+                                             self.root_enc)
+                self.root_enc is None
                 self.rebalance_entries = []
         elif packet.call_type == "eviction":
             self.cache.logger.info("Receiving eviction message")
             entry = packet.data[0]
-            self.cache.merge([entry])
+            self.cache.merge_new([entry])
         elif packet.call_type == "sync":
             self.cache.logger.info("Receiving sync message")
             entry = packet.data[0]
-            self.cache.merge([entry])
+            assert(self.cache._index_of_encoding(entry.encoding) is None)
+            self.cache.merge_new([entry])
         else:
             raise ValueError("Unrecognized packet type sent to gateway")
 
