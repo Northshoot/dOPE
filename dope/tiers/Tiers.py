@@ -243,6 +243,11 @@ class dSensor(Tier):
 
         # If sensor can't process immediately, enqueue 
         try:
+            self.cache.logger.info("Insert blocking.  Number priority" +
+                                   "messages outstanding: %d.\n "
+                                   "Wating on insert: " 
+                                   + str(self.cache.waiting_on_insert[0]),
+                                   len(self.cache.priority_messages))
             self.data_queue.put_nowait(plaintxt)
             self.num_data_sent += 1
         except queue.Full:
@@ -290,6 +295,7 @@ class dSensor(Tier):
             waiting, index, plaintxt = self.cache.waiting_on_insert
             assert(waiting)
             entry = packet.data
+            self.cache.logger.info("Merging entry:\n " + str(entry))
             self.cache.merge([entry])
             self.cache.insert(plaintxt, index)
 
@@ -342,6 +348,9 @@ class dGateway(Tier):
             if start_flag:
                 self.cache.logger.info("First in a possible series of " +
                                        "rebalance requests")
+                if self.rebalance_entries != [] or self.root_enc is not None:
+                    self.cache.logger.info("Rebalance Entries: " + 
+                                           str(self.rebalance_entries))
                 assert(self.rebalance_entries == [] and self.root_enc is None)
                 # Initial rebalance entry is the root encoding
                 self.root_enc = entry
@@ -351,18 +360,21 @@ class dGateway(Tier):
                 self.cache.logger.info("Last rebalance request of the series")
                 self.cache.rebalance_request(self.rebalance_entries, 
                                              self.root_enc)
-                self.root_enc is None
+                self.root_enc = None
                 self.rebalance_entries = []
-        elif packet.call_type == "eviction":
+        elif packet.call_type == "evict":
             self.cache.logger.info("Receiving eviction message")
             entry = packet.data[0]
             self.cache.merge_new([entry])
         elif packet.call_type == "sync":
-            self.cache.logger.info("Receiving sync message")
+            self.cache.logger.info("Receiving sync message with cipher: %d", 
+                                   packet.data[0].cipher_text)
             entry = packet.data[0]
             assert(self.cache._index_of_encoding(entry.encoding) is None)
             self.cache.merge_new([entry])
         else:
+            self.cache.logger.error("Packet of call type %s received", 
+                                    packet.call_type)
             raise ValueError("Unrecognized packet type sent to gateway")
 
 

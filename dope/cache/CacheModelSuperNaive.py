@@ -86,7 +86,8 @@ class CacheEntry(object):
         self.encoding = encoding
         self.subtree_size = 1
         self.is_leaf = True
-        self.has_one_child = False
+        self.has_left_child = False
+        self.has_right_child = False
         self.lru = lru_tag
         self.synced = False
 
@@ -98,10 +99,12 @@ class CacheEntry(object):
         )
         if self.is_leaf:
             selfstr += "LEAF\n"
-        elif self.has_one_child:
+        elif self.has_left_child != self.has_right_child:
             selfstr += "ONE CHILD\n"
         else:
             selfstr += "TWO CHILDREN\n"
+        if self.synced:
+            selfstr += "SYNCED\n"
         selfstr += "----------------------------\n"
         return selfstr
 
@@ -226,9 +229,10 @@ class CacheModel(object):
         self.cache = [x for x in self.cache if not x in lru_entries]
         self.cache.sort()
         for entry in lru_entries:
-            self.logger.info("Adding eviction to outgoing messages")
-            self.priority_messages.append(OutgoingMessage(messageType[3], 
-                                          copy.deepcopy(entry)))
+            if not entry.synced:
+                self.logger.info("Adding eviction to outgoing messages")
+                self.priority_messages.append(OutgoingMessage(messageType[3], 
+                                              copy.deepcopy(entry)))
 
     def _handle_miss(self, subtree_root, next_encoding, plaintext):
         '''Internal Method handle_miss
@@ -250,6 +254,7 @@ class CacheModel(object):
         Add the ciphertext to the cache in an entry with the provided 
         encoding
         '''
+        assert(self._index_of_encoding(new_entry_encoding) is None)
         self.logger.info("Adding %d to the cache", new_ciphertext)
         self.cache.append(CacheEntry(new_ciphertext, new_entry_encoding,
                                      self.lru_tag))
@@ -344,6 +349,15 @@ class CacheModel(object):
                 return False
         return True
 
+    def _unique_ciphers(self):
+        ''' Internal Method _unique_ciphers
+        -----------------------------------
+        Returns true if all ciphertexts in the cache are unique
+        '''
+        for entry in self.cache:
+            same_ciphers = filter()
+
+        return True
     def acknowledge_sync(self, entry):
         ''' Method acknowledge_sync
         ---------------------------
@@ -362,7 +376,8 @@ class CacheModel(object):
         Merge new entries into the existing cache.  
         '''
         self.logger.info("Beginning merge of %d elements",len(incoming_entries))
-        filter(self._filter_cache_occupancy, incoming_entries)
+        new_entries = list(filter(self._filter_cache_occupancy, 
+                                  incoming_entries))
         self.cache.extend(incoming_entries)
         self.cache.sort()
 
@@ -404,6 +419,7 @@ class CacheModel(object):
         the region of the encoding tree necessary to continue the
         the insert, or no change in the case a duplicate is found
         '''
+        self.logger.info("Inserting: %d", new_plaintext)
         if self.cache == []:
             if self.current_size == 0:
                 self.logger.info("Inserting original root")
@@ -411,7 +427,8 @@ class CacheModel(object):
                 self.lru_tag += 1
                 self.current_size += 1
                 new_entry = copy.deepcopy(self.cache[0])
-                self.sync_messages.append(OutgoingMessage(messageType[2], new_entry))
+                self.sync_messages.append(OutgoingMessage(messageType[2], 
+                                                          new_entry))
                 return
             else: # Recover from rebalance at root 
                 self.logger.info("Recovering from rebalance at root")
@@ -423,7 +440,7 @@ class CacheModel(object):
             self.logger.info("Continuing insert after message received")
             current_index = start_index
             current_entry = self.cache[start_index]
-            new_entry_encoding = current_entry.encoding
+            new_entry_encoding = self._enc_copy(current_entry.encoding)
         else:
             current_index = self._index_of_encoding([])
             current_entry = self.cache[current_index]
@@ -436,16 +453,17 @@ class CacheModel(object):
             if current_plaintext == new_plaintext:
                 self.logger.info("Found duplicate %d in the cache", 
                                  current_plaintext)
+                self.waiting_on_insert = (False, None, None)
                 return # Found duplicate in cache
             elif (current_plaintext > new_plaintext and 
-                self._left_child(current_index) is None and 
-                current_entry.has_one_child):
+                 not current_entry.has_left_child):
                 # Insert new value as left child
+                current_entry.has_left_child = True
                 break
             elif (current_plaintext < new_plaintext and
-                self._right_child(current_index) is None and
-                current_entry.has_one_child):
+                 not current_entry.has_right_child):
                 # Insert new value as right child
+                current_entry.has_right_child = True
                 break
             else:
                 new_entry_encoding.append(0 if current_plaintext > 
@@ -462,21 +480,22 @@ class CacheModel(object):
         # Traversed up to the parent entry of the new entry
         self.logger.info("Traversed up to insert position of plaintext %d",
                      new_plaintext)
-        if current_entry.is_leaf:
-            current_entry.lru = self.lru_tag
-            self.lru_tag += 1
-            current_plaintext = decrypt(current_entry.cipher_text)
-            if current_plaintext == new_plaintext:
-                self.logger.info("Found duplicate %d in the cache", 
+        self.waiting_on_insert = (False, None, None)
+        
+        current_entry.lru = self.lru_tag
+        self.lru_tag += 1
+        current_plaintext = decrypt(current_entry.cipher_text)
+        if current_plaintext == new_plaintext:
+            self.logger.info("Found duplicate %d in the cache", 
                              current_plaintext)
-                return # Found duplicate in cache
-            self.cache[current_index].is_leaf = False
-            self.cache[current_index].has_one_child = True
-        else:
-            self.cache[current_index].has_one_child = False
-        new_entry_encoding.append(0 if current_plaintext > 
-                                  new_plaintext else 1
-                                 )
+            return # Found duplicate in cache
+        elif new_plaintext < current_plaintext:
+            self.cache[current_index].has_left_child = True
+            new_entry_encoding.append(0)
+        elif new_plaintext > current_plaintext:
+            self.cache[current_index].has_right_child = True
+            new_entry_encoding.append(1)
+        self.cache[current_index].is_leaf = False
         self._update_parent_sizes(new_entry_encoding)
         if (self.max_size is not None and len(self.cache) == 
             self.max_size):
@@ -485,8 +504,11 @@ class CacheModel(object):
         self._cachetable_add(new_ciphertext, new_entry_encoding)
         new_index = self._index_of_encoding(new_entry_encoding)
         new_entry = copy.deepcopy(self.cache[new_index])
-        self.sync_messages.append(OutgoingMessage(messageType[2], new_entry))
+        if not new_entry.synced:
+            self.sync_messages.append(OutgoingMessage(messageType[2], new_entry))
         self.rebalance(new_entry_encoding)
+        assert(self._unique_ciphers)
+
         
     #######################################################################
     ######################### Higher Tier Methods #########################
@@ -509,12 +531,13 @@ class CacheModel(object):
 
         # Update entry metadata
         entry.subtree_size += l_size + r_size
-        if r_entry != [] and l_entry != []:
-            entry.has_one_child = False
+        if r_entry != [] or l_entry != []:
             entry.is_leaf = False
-        elif not(r_entry == [] and l_entry == []):
-            entry.has_one_child = True
-            entry.is_leaf = False
+        if r_entry != []:
+            entry.has_right_child = True
+        if l_entry != []:
+            entry.has_left_child = True
+
         return (entry.subtree_size, sorted([entry] + r_entry + l_entry))
 
     def _rebalance_node(self, index):
@@ -566,16 +589,30 @@ class CacheModel(object):
     def merge_new(self, incoming_entries):
         ''' Method merge_new
         --------------------
-        Filter incoming entries, only merging in new entries and 
-        updating subtree sizes to match tree in lower hierarchy
+        Filter incoming entries, only merging in new entries updating
+        subtree sizes to match tree in lower hierarchy.  Precondition:
+        entry has not been added to the cache yet.  This must hold to 
+        guarantee no overcounting of subtree sizes on multiple inserts.  
+        This method combines syncs from tier below while merge is
+        used on insert requests from above or rebalance merges from
+        the same tier.
         '''
         self.logger.info("Beginning merge of %d elements",len(incoming_entries))
-        filter(self._filter_cache_occupancy, incoming_entries)
-        self.cache.extend(incoming_entries)
+        new_entries = list(filter(self._filter_cache_occupancy, 
+                                  incoming_entries))
+        self.cache.extend(new_entries)
         self.cache.sort()
-        self.cache.current_size += 1
+        self.current_size += 1
         for entry in incoming_entries:
             self._update_parent_sizes(entry.encoding)
+        # update parental status 
+        for i in range(len(self.cache)):
+            if self._right_child(i) is not None: 
+                self.cache[i].is_leaf = False
+                self.cache[i].has_right_child = True
+            if self._left_child(i) is not None:
+                self.cache[i].is_leaf = False
+                self.cache[i].has_left_child = True
 
     def rebalance_request(self, subtree, root_enc):
         ''' Method rebalance_request
@@ -596,11 +633,14 @@ class CacheModel(object):
         '''
         index = self._index_of_encoding(encoding)
         if index is None:
+            self.logger.error("Could not find cipher to send back")
             raise(ValueError("The server should have a record of every" +
                               "existing encoding not at the sensor"))
         entry = copy.deepcopy(self.cache[index])
         entry.synced = True
-        return OutgoingMessage(messageType[0], copy.deepcopy(self.cache[index]))
+        self.logger.info("Sending insert reply with cipher %d",
+                         self.cache[index].cipher_text)
+        return OutgoingMessage(messageType[0], entry)
 
 
 

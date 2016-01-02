@@ -53,7 +53,7 @@ def convert_cache_to_forest(cache, out_file):
  
         # Insert doesn't work on anyone else? Add a new tree to trees
         if not success:
-            trees.append(SGTree(elt.cipher_text))
+            trees.append(BSTree(elt.cipher_text))
             encs.append(elt.encoding)
     with open(out_file, "a") as logfile:
         for idx in range(len(trees)):
@@ -66,9 +66,10 @@ def convert_cache_to_forest(cache, out_file):
 
 def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len,
          distribution = 'random'):
+    ts = str(time())
     sensor = dSensor(data_queue_len, distribution, cache_len, 
-                     "dSensorCache" + str(time()) +".log")
-    gateway = dGateway("dGatewayCache" + str(time()) + ".log")
+                     "dSensorCache" + ts +".log")
+    gateway = dGateway("dGatewayCache" + ts + ".log")
     sensor.link(gateway)
     gateway.link(sensor)
     tic = 0
@@ -83,14 +84,14 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len,
         # Generate data and place into queue
         if tic % dataTics == 0:
             sensor.generate_data()
-            convert_cache_to_forest(sensor.cache.cache, sensor.cache.outfile)
-            with open(sensor.cache.outfile, "a") as sensorF:
-                print(sensor.cache, file=sensorF)
 
         # Send packets between devices
         if tic % networkTics == 0:
             sensor.receive_message()
             sensor.send_message()
+            convert_cache_to_forest(sensor.cache.cache, sensor.cache.outfile)
+            with open(sensor.cache.outfile, "a") as sensorF:
+                print(sensor.cache, file=sensorF)
 
             gateway.receive_message()
             gateway.send_message()
