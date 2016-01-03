@@ -234,7 +234,7 @@ class CacheModel(object):
                 self.priority_messages.append(OutgoingMessage(messageType[3], 
                                               copy.deepcopy(entry)))
 
-    def _handle_miss(self, subtree_root, next_encoding, plaintext):
+    def _handle_miss(self, next_encoding, plaintext):
         '''Internal Method handle_miss
         ------------------------------
         Bring in the next entry along the encoding path to complete the
@@ -243,7 +243,7 @@ class CacheModel(object):
         self.logger.info("Handling cache miss")
         if len(self.cache) == self.max_size:
             self._evict(1)
-        self.waiting_on_insert = (True, subtree_root, plaintext)
+        self.waiting_on_insert = (True, next_encoding[:-1], plaintext)
         self.logger.info("Adding insert request to outgoing messages")
         self.priority_messages.append(OutgoingMessage(messageType[0],
                                       self._enc_copy(next_encoding)))
@@ -350,14 +350,38 @@ class CacheModel(object):
         return True
 
     def _unique_ciphers(self):
-        ''' Internal Method _unique_ciphers
+        ''' Internal Method unique_ciphers
         -----------------------------------
         Returns true if all ciphertexts in the cache are unique
         '''
+        cipher_set = set()
         for entry in self.cache:
-            same_ciphers = filter()
-
+            if entry.cipher_text in cipher_set:
+                self.logger.info(str(entry) + "has duplicate cipher")
+                return False
+            cipher_set.add(entry.cipher_text)
         return True
+
+    def _ordered(self):
+        ''' Internal Method ordered
+        ---------------------------
+        Return true if the BST ordering property is preserved
+        '''
+        self.cache.sort()
+        ciphers = [x.cipher_text for x in self.cache]
+        s_ciphers = sorted(ciphers)
+        if ciphers == s_ciphers:
+            return True
+        else:
+            self.logger.info("Ordering broken, cipher order:")
+            self.logger.info(str(ciphers))
+            self.logger.info("sorted cipher order:")
+            self.logger.info(str(sorted(ciphers)))
+            different_indices = [cipher[i] for i in range(len(ciphers)) if 
+                                 ciphers[i] != s_ciphers[i]]
+            self.logger.info(str(different_indices))
+            return False
+
     def acknowledge_sync(self, entry):
         ''' Method acknowledge_sync
         ---------------------------
@@ -410,7 +434,22 @@ class CacheModel(object):
             self.logger.warning("Insert should not register unbalanced if " +
                                 " no scapegoat can be found")
 
-    def insert(self, new_plaintext, start_index=None):
+    def _insert_traverse(self, ):
+        ''' Internal Method insert_traverse
+        ----------------------------
+        Handle the search for the next insert position.  The first 
+        half of the insert function
+        '''
+
+    def _insert_update(self, ):
+        ''' Internal Method insert_update
+        ---------------------------------
+        Handle the updating of cache state upon an insert.  The second 
+        half of the insert function
+        '''
+
+
+    def insert(self, new_plaintext, start_enc=None):
         ''' Method insert
         -----------------
         Used for both fresh inserts and picking up on inserts after
@@ -432,12 +471,14 @@ class CacheModel(object):
                 return
             else: # Recover from rebalance at root 
                 self.logger.info("Recovering from rebalance at root")
-                self._handle_miss(0, [], new_plaintext)
+                self._handle_miss([], new_plaintext)
                 return
 
         new_entry_encoding = []
-        if start_index is not None:
-            self.logger.info("Continuing insert after message received")
+        if start_enc is not None:
+            start_index = self._index_of_encoding(start_enc)
+            self.logger.info("Continuing insert starting at %d", 
+                             self.cache[start_index].cipher_text)
             current_index = start_index
             current_entry = self.cache[start_index]
             new_entry_encoding = self._enc_copy(current_entry.encoding)
@@ -473,13 +514,13 @@ class CacheModel(object):
                     current_index = index
                     current_entry = self.cache[current_index]
                 else:
-                    self._handle_miss(current_index, new_entry_encoding,
-                                      new_plaintext)
+                    self._handle_miss(new_entry_encoding, new_plaintext)
                     return
 
         # Traversed up to the parent entry of the new entry
-        self.logger.info("Traversed up to insert position of plaintext %d",
-                     new_plaintext)
+        self.logger.info("Traversed up to insert position of plaintext %d" +
+                         " Parent: %d", current_entry.cipher_text,   
+                         new_plaintext)
         self.waiting_on_insert = (False, None, None)
         
         current_entry.lru = self.lru_tag
@@ -507,7 +548,7 @@ class CacheModel(object):
         if not new_entry.synced:
             self.sync_messages.append(OutgoingMessage(messageType[2], new_entry))
         self.rebalance(new_entry_encoding)
-        assert(self._unique_ciphers)
+        
 
         
     #######################################################################

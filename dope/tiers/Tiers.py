@@ -208,7 +208,7 @@ class dSensor(Tier):
     '''
     def __init__(self, data_queue_len, distribution, cache_len, out_file):
         super(dSensor,self).__init__('Sensor',Communicator())
-        self.data_gen = DataGenerator(distribution)
+        self.data_gen = DataGenerator(distribution, [-1000, 1000])
         self.__sk = 0 # A dummy secret key that isn't used or properly initialized (yet)
         self.num_data_sent = 0
         self.num_gen = 0
@@ -229,7 +229,8 @@ class dSensor(Tier):
         self.num_gen += 1
         plaintxt = self.data_gen.get_next()
         print(plaintxt)
-        if len(self.cache.priority_messages) < 1 and not self.cache.waiting_on_insert[0]:
+        if (len(self.cache.priority_messages) < 1 and not 
+            self.cache.waiting_on_insert[0]):
             self.insert_round_trips.append(0)
             # If queue is not empty then pop one off
             if not self.data_queue.empty():
@@ -285,6 +286,10 @@ class dSensor(Tier):
         If a message was sent to the sensor process and change state
         accordingly
         '''
+        ## For debugging check for cache duplicates
+        assert(self.cache._unique_ciphers())
+        assert(self.cache._ordered())
+        ##
         packet = self.communicator.read()
         if packet is None:
             return
@@ -292,12 +297,12 @@ class dSensor(Tier):
             raise ValueError("Higher tiers only send insert Responses")
         else:
             # continue inserted where we left off
-            waiting, index, plaintxt = self.cache.waiting_on_insert
+            waiting, encoding, plaintxt = self.cache.waiting_on_insert
             assert(waiting)
             entry = packet.data
             self.cache.logger.info("Merging entry:\n " + str(entry))
             self.cache.merge([entry])
-            self.cache.insert(plaintxt, index)
+            self.cache.insert(plaintxt, encoding)
 
 
 class dGateway(Tier):
@@ -325,12 +330,18 @@ class dGateway(Tier):
                                    self.message2send.messageType)
             self.message2send = None
 
+
     def receive_message(self):
         ''' Method receive_message
         --------------------------
         If a message is sent from the sensor process and change state 
         at the gateway
         '''
+        ## For debugging check for unique ciphers
+        assert(self.cache._unique_ciphers())
+        assert(self.cache._ordered())
+        ## END DEBUG
+
         packet = self.communicator.read()
         if packet is None:
             return

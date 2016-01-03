@@ -30,8 +30,11 @@ def convert_cache_to_forest(cache, out_file):
     trees = []
     encs = []
     if cache == []:
-        with open(out_file, "a") as logfile:
-            print([], file=logfile)
+        if out_file is None:
+            print([])
+        else:
+            with open(out_file, "a") as logfile:
+                print([], file=logfile)
         return
     trees.append(BSTree(cache[0].cipher_text))
     encs.append([])
@@ -55,12 +58,19 @@ def convert_cache_to_forest(cache, out_file):
         if not success:
             trees.append(BSTree(elt.cipher_text))
             encs.append(elt.encoding)
-    with open(out_file, "a") as logfile:
+    if out_file is None:
         for idx in range(len(trees)):
-            print("\n", file=logfile)
-            print(str(trees[idx]), file=logfile)
-            print("Encoding: " + str(encs[idx]), file=logfile)
-            print("\n", file=logfile)
+            print("\n")
+            print(str(trees[idx]))
+            print("Root Encoding: " + str(encs[idx]))
+            print("\n")
+    else:
+        with open(out_file, "a") as logfile:
+            for idx in range(len(trees)):
+                print("\n", file=logfile)
+                print(str(trees[idx]), file=logfile)
+                print("Root Encoding: " + str(encs[idx]), file=logfile)
+                print("\n", file=logfile)
 
 
 
@@ -101,17 +111,17 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len,
         tic += 1
    
 
-    print("The resulting cache")
-    sensor.cache.cache.sort(key = lambda x: len(x.encoding))
-    print(sensor.cache)
+   
     print("The number of data recorded by the system")
     print(sensor.num_data_sent - sensor.data_queue.qsize())
+    print("The resulting cache at the sensor")
+    print(sensor.cache)
     print("The resulting tree(s) at the sensor")
-    convert_cache_to_forest(sensor.cache.cache)
+    convert_cache_to_forest(sensor.cache.cache, None)
     print("The resulting cache at the gateway")
     gateway.cache.cache.sort(key = lambda x: len(x.encoding))
     print(gateway.cache)
-    convert_cache_to_forest(gateway.cache.cache)
+    convert_cache_to_forest(gateway.cache.cache, None)
 
 
     # print("Round Trip Times")
