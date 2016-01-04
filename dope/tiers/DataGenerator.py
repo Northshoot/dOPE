@@ -1,7 +1,7 @@
 __author__ = 'lauril & wdaviau'
 
 import random
-from parsers.parseWeatherData import parseNOAAFile
+from parsers.parseSubHourlyWD import parseNOAAFile
 
 
 class DataGenerator(object):
@@ -18,7 +18,8 @@ class DataGenerator(object):
         self.current = 0
         self.timeseries = []
         if (distribution == 'NOAA_temp'):
-            self.timeseries = parseNOAAFile('parsers/CRNH0203-2015-NY_Ithaca_13_E.txt',10)
+            self.timeseries = parseNOAAFile('parsers/CRNS0101-05-2008-KY_' + 
+                                            'Bowling_Green_21_NNE.txt', 9)
 
     def get_next(self):
         if self.distribution == 'random' :

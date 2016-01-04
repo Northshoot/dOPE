@@ -208,15 +208,13 @@ class dSensor(Tier):
     '''
     def __init__(self, data_queue_len, distribution, cache_len, out_file):
         super(dSensor,self).__init__('Sensor',Communicator())
-        self.data_gen = DataGenerator(distribution, [-1000, 1000])
+        self.data_gen = DataGenerator(distribution)
         self.__sk = 0 # A dummy secret key that isn't used or properly initialized (yet)
         self.num_data_sent = 0
         self.num_gen = 0
         self.comp_req_queue = queue.Queue(1)
         self.data_queue = queue.Queue(data_queue_len)
         self.insert_round_trips = []
-        self.still_sending = False
-        self.sending_idx = 0
         self.cache = cache.CacheModel(cache_len, out_file)
 
     def generate_data(self):
@@ -228,7 +226,6 @@ class dSensor(Tier):
         # Enqueue data for low priority sending 
         self.num_gen += 1
         plaintxt = self.data_gen.get_next()
-        print(plaintxt)
         if (len(self.cache.priority_messages) < 1 and not 
             self.cache.waiting_on_insert[0]):
             self.insert_round_trips.append(0)
@@ -244,7 +241,8 @@ class dSensor(Tier):
 
         # If sensor can't process immediately, enqueue 
         try:
-            self.cache.logger.info("Insert blocking.  Number priority" +
+            self.insert_round_trips[-1] += 1
+            self.cache.logger.info("Insert blocking.  Number priority " +
                                    "messages outstanding: %d.\n "
                                    "Wating on insert: " 
                                    + str(self.cache.waiting_on_insert[0]),
@@ -263,14 +261,6 @@ class dSensor(Tier):
         '''
         if len(self.cache.priority_messages) > 0:
             message2send = self.cache.priority_messages.pop(0)
-            # Keep track of the number of round trips to deliver the message
-            if message2send.start_flag:
-                self.still_sending = True
-                self.sending_idx = len(self.insert_round_trips)-1
-            if message2send.end_flag:
-                self.still_sending = False
-            if self.still_sending:
-                self.insert_round_trips[self.sending_idx] += 1
             self.communicator.send((message2send.entry, message2send.start_flag,
                                     message2send.end_flag),
                                   message2send.messageType)
@@ -287,8 +277,8 @@ class dSensor(Tier):
         accordingly
         '''
         ## For debugging check for cache duplicates
-        assert(self.cache._unique_ciphers())
-        assert(self.cache._ordered())
+        #assert(self.cache._unique_ciphers())
+        #assert(self.cache._ordered())
         ##
         packet = self.communicator.read()
         if packet is None:
@@ -338,8 +328,8 @@ class dGateway(Tier):
         at the gateway
         '''
         ## For debugging check for unique ciphers
-        assert(self.cache._unique_ciphers())
-        assert(self.cache._ordered())
+        #assert(self.cache._unique_ciphers())
+        #assert(self.cache._ordered())
         ## END DEBUG
 
         packet = self.communicator.read()
