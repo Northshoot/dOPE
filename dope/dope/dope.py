@@ -91,7 +91,7 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len,
         with open(gateway.cache.outfile, "a") as gateF:
             print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
                   "---------------\n", file=gateF)
-        Generate data and place into queue
+        #Generate data and place into queue
         if tic % dataTics == 0:
             sensor.generate_data()
 
