@@ -70,5 +70,13 @@ class CacheEntry(object):
     self.subtree_size = 0
     self.is_leaf = True
 
+  def __str__(self):
+    selfstr = "-------------\n" + str(self.plaintext_data) + "\n" + str(self.encoding) + "\n" + str(self.subtree_size) + "\n";
+    if self.is_leaf:
+      selfstr+= "LEAF\n"
 
-class CacheEntries(object):
+    selfstr+= "-------------\n"
+    return
+
+
+

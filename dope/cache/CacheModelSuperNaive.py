@@ -77,6 +77,14 @@ def encoding_cmp(enc1, enc2):
     else:
         return 1
 
+def enc2string(list):
+    assert(len)
+    s = ""
+    for elt in list:
+        s = s + str(elt)
+
+    return s
+
 class CacheEntry(object):
     ''' One entry in a cache table, keeps track of ciphertext, encoding,
         lru tag, subtree size, and leaf status
@@ -84,6 +92,7 @@ class CacheEntry(object):
     def __init__(self, ciphertext_data, encoding, lru_tag):
         self.cipher_text = ciphertext_data
         self.encoding = encoding
+        self.encodingfast = enc2string(encoding)
         self.subtree_size = 1
         self.is_leaf = True
         self.has_left_child = False
@@ -115,7 +124,7 @@ class CacheEntry(object):
         return encdoing_cmp(self.encoding, other.encoding) < 0
 
     def __eq__(self, other):
-        return encoding_cmp(self.encoding, other.encoding) == 0
+        return self.encoding == other.encoding
 
     def __le__(self, other):
         return encoding_cmp(self.encoding, other.encoding) <= 0
@@ -177,6 +186,17 @@ class CacheModel(object):
                 return i
         return None
 
+    def _index_of_encoding_fast(self,encoding):
+        '''Internal Method index_of_encoding_fast
+        -----------------------------------------
+        Return the index of the provided encoding in the cache table FASTER
+        '''
+        encfast = enc2string(encoding)
+        for i,v in enumerate(self.cache):
+            if v.encodingfast == encfast:
+                return i
+        return None
+
     def _enc_copy(self, list_to_copy):
         ''' Internal Method _enc_copy
         -----------------------------
@@ -192,7 +212,7 @@ class CacheModel(object):
         '''
         encoding = self._enc_copy(self.cache[index].encoding)
         encoding.append(0)
-        return self._index_of_encoding(encoding)
+        return self._index_of_encoding_fast(encoding)
 
     def _right_child(self, index):
         '''Internal Method right_child
@@ -202,7 +222,7 @@ class CacheModel(object):
         '''
         encoding = self._enc_copy(self.cache[index].encoding)
         encoding.append(1)
-        return self._index_of_encoding(encoding)
+        return self._index_of_encoding_fast(encoding)
 
     def _update_parent_sizes(self, encoding):
         ''' Method update_parent_sizes
@@ -213,7 +233,7 @@ class CacheModel(object):
         self.logger.info("Updating parent sizes")
         level = 0
         while (level < len(encoding)):
-            next_index = self._index_of_encoding(encoding[:level])
+            next_index = self._index_of_encoding_fast(encoding[:level])
             if next_index is not None:
                 self.cache[next_index].subtree_size += 1
             level += 1
@@ -227,7 +247,6 @@ class CacheModel(object):
         sorted_entries = sorted(self.cache, key=lambda x: x.lru)
         lru_entries = sorted_entries[:num_evictions]
         self.cache = [x for x in self.cache if not x in lru_entries]
-        self.cache.sort()
         for entry in lru_entries:
             if not entry.synced:
                 self.logger.info("Adding eviction to outgoing messages")
@@ -254,11 +273,10 @@ class CacheModel(object):
         Add the ciphertext to the cache in an entry with the provided 
         encoding
         '''
-        assert(self._index_of_encoding(new_entry_encoding) is None)
+        assert(self._index_of_encoding_fast(new_entry_encoding) is None)
         self.logger.info("Adding %d to the cache", new_ciphertext)
         self.cache.append(CacheEntry(new_ciphertext, new_entry_encoding,
                                      self.lru_tag))
-        self.cache.sort()
         self.lru_tag += 1
         self.current_size += 1
 
@@ -387,7 +405,7 @@ class CacheModel(object):
         ---------------------------
         Flip the sync flag of the matching entry 
         '''
-        index = self._index_of_encoding(entry.encoding)
+        index = self._index_of_encoding_fast(entry.encoding)
         if self.cache[index].cipher_text != entry.cipher_text:
             self.logger.error("Non-matching ciphertext while acking sync")
         self.logger.info("Acknowledging that cipher %d is synced", 
@@ -403,7 +421,6 @@ class CacheModel(object):
         new_entries = list(filter(self._filter_cache_occupancy, 
                                   incoming_entries))
         self.cache.extend(incoming_entries)
-        self.cache.sort()
 
     def rebalance(self, encoding):
         ''' Method rebalance
@@ -416,11 +433,11 @@ class CacheModel(object):
         '''
         if len(encoding) > self._balanced_h():
             self.logger.info("Tree is unbalanced")
-            index = self._index_of_encoding(encoding)
+            index = self._index_of_encoding_fast(encoding)
             # Find scapegoat node
             level = len(encoding)
             while (level >= 0):
-                index = self._index_of_encoding(encoding[:level])
+                index = self._index_of_encoding_fast(encoding[:level])
                 if self._is_scapegoat_node(index):
                     self.logger.info("Found scapegoat node with cipher: %d",
                                   self.cache[index].cipher_text)
@@ -476,14 +493,14 @@ class CacheModel(object):
 
         new_entry_encoding = []
         if start_enc is not None:
-            start_index = self._index_of_encoding(start_enc)
+            start_index = self._index_of_encoding_fast(start_enc)
             self.logger.info("Continuing insert starting at %d", 
                              self.cache[start_index].cipher_text)
             current_index = start_index
             current_entry = self.cache[start_index]
             new_entry_encoding = self._enc_copy(current_entry.encoding)
         else:
-            current_index = self._index_of_encoding([])
+            current_index = self._index_of_encoding_fast([])
             current_entry = self.cache[current_index]
 
         # Traverse the tree encoded in the cache table 
@@ -509,7 +526,7 @@ class CacheModel(object):
             else:
                 new_entry_encoding.append(0 if current_plaintext > 
                                           new_plaintext else 1)
-                index = self._index_of_encoding(new_entry_encoding)
+                index = self._index_of_encoding_fast(new_entry_encoding)
                 if index is not None:
                     current_index = index
                     current_entry = self.cache[current_index]
@@ -543,7 +560,7 @@ class CacheModel(object):
             self._evict(1)
         new_ciphertext = encrypt(new_plaintext)
         self._cachetable_add(new_ciphertext, new_entry_encoding)
-        new_index = self._index_of_encoding(new_entry_encoding)
+        new_index = self._index_of_encoding_fast(new_entry_encoding)
         new_entry = copy.deepcopy(self.cache[new_index])
         if not new_entry.synced:
             self.sync_messages.append(OutgoingMessage(messageType[2], new_entry))
@@ -642,7 +659,6 @@ class CacheModel(object):
         new_entries = list(filter(self._filter_cache_occupancy, 
                                   incoming_entries))
         self.cache.extend(new_entries)
-        self.cache.sort()
         self.current_size += 1
         for entry in incoming_entries:
             self._update_parent_sizes(entry.encoding)
@@ -662,7 +678,7 @@ class CacheModel(object):
         rebalance
         '''
         self.merge_new(subtree)
-        root_index = self._index_of_encoding(root_enc)
+        root_index = self._index_of_encoding_fast(root_enc)
         assert(self._subtree_in_cache(root_index))
         self._rebalance_node(root_index)
 
@@ -672,7 +688,7 @@ class CacheModel(object):
         Return the message to be sent back to the requester in order to
         continue the insert at the sensor. 
         '''
-        index = self._index_of_encoding(encoding)
+        index = self._index_of_encoding_fast(encoding)
         if index is None:
             self.logger.error("Could not find cipher to send back")
             raise(ValueError("The server should have a record of every" +

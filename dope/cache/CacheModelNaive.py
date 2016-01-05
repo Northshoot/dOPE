@@ -318,7 +318,6 @@ class CacheModel(object):
 
     return (entry.subtree_size, sorted([entry] + r_entry + l_entry))
 
-
   ## Internal Method _median_find
   ## ----------------------------
   ## Return the median and the index of the median of the provided list
@@ -334,10 +333,6 @@ class CacheModel(object):
   ## Internal Method index_of_encoding
   ## ---------------------------------
   ## Return the index of the provided encoding
-  ## If it can't be found an exception will be raised so this 
-  ## should only be called when looking for an encoding previously
-  ## found in a list.  Does not search from a smart starting place 
-  ## like search_for_encoding
   def _index_of_encoding(self, encoding):
     for i,v in enumerate(self.cache):
       if v.encoding == encoding:
@@ -360,17 +355,24 @@ class CacheModel(object):
     start_encoding = root_entry.encoding
     subtree_to_send = [x for x in self.cache if x.encoding[:len(start_encoding)]== start_encoding]
     subtree_to_send = sorted(subtree_to_send, key = lambda x: len(x.encoding))
+    print("SUBTREE SENT BY THE SENSOR ")
+    print("---------------------------")
+    for x in subtree_to_send:
+      print(str(x))
     self.outgoing_messages.append(OutgoingMessage(messageType[2], subtree_to_send[0], start_flag = True))
     for entry in subtree_to_send[1:len(subtree_to_send)-1]:
       self.outgoing_messages.append(OutgoingMessage(messageType[2], entry))
     self.outgoing_messages.append(OutgoingMessage(messageType[2], subtree_to_send[-1], end_flag = True))
-
 
   ## Method resolve_rebalance_coherence
   ## ----------------------------------
   ## Used by a higher tier space to merge in a list of entries that have been rebalanced
   ## and delete any duplicates with now stale encodings 
   def resolve_rebalance_coherence(self, subtree):
+    print("SUBTREE THAT WAS SENT OVER TO THE GATEWAY:")
+    print("-------------------------------------------")
+    for x in subtree:
+      print(str(x))
     root_encoding = subtree[0].encoding
     # Delete any stale entries
     old_size = len(self.cache)
@@ -394,13 +396,17 @@ class CacheModel(object):
     start_encoding = root_entry.encoding
     # Need to do an eviction too 
     subtree_to_evict = [x for x in self.cache if x.encoding[:len(start_encoding)]== start_encoding]
+    subtree_to_evict = sorted(subtree_to_evict, key = lambda x: len(x.encoding))
+    # print("SUBTREE SENT BY THE SENSOR ")
+    # print("---------------------------")
+    # for x in subtree_to_evict:
+    #   print(str(x))
     self.cache = [x for x in self.cache if not x in subtree_to_evict] # Evict entries
     self.current_size = len(self.cache)
     self.outgoing_messages.append(OutgoingMessage(messageType[3], root_entry, start_flag = True))
     for entry in subtree_to_evict[1:len(subtree_to_evict)-1]:
       self.outgoing_messages.append(OutgoingMessage(messageType[3], entry))
     self.outgoing_messages.append(OutgoingMessage(messageType[3], subtree_to_evict[-1], end_flag = True))
-
 
   ## Internal Method filter_cache_occupancy
   ## --------------------------------------
@@ -420,8 +426,6 @@ class CacheModel(object):
   ## ordering claims.  Assumes all incoming entries are either new or 
   ## repeats.  All incoherence is handled elsewhere
   def merge(self, incoming_entries):
-    insert_index = 0
-    entry_index = 0
     incoming_entries.sort()
     filter(self._filter_cache_occupancy, incoming_entries)
     self.cache.extend(incoming_entries)
@@ -491,6 +495,10 @@ class CacheModel(object):
   ## perform a rebalance starting at the node with the provided encoding
   ## Note subtree is ordered with the root at the head of the list
   def resolve_rebalance_request(self, subtree):
+    # print("SUBTREE THAT WAS SENT OVER TO THE GATEWAY:")
+    # print("-------------------------------------------")
+    # for x in subtree:
+    #   print(str(x))
     root_encoding = subtree[0].encoding
     self.merge(subtree)
     root_index = self._index_of_encoding(root_encoding)
@@ -515,7 +523,7 @@ class CacheModel(object):
   ## --------------------
   ## Called by gateway or server to respond to misses (Assuming infinite storage gateway / 2 tiers)
   def resolve_insert_request(self, encoding):
-    index = _index_of_encoding(encoding)
+    index = self._index_of_encoding(encoding)
     return OutgoingMessage(messageType[1], self.cache[index])
 
   
@@ -536,6 +544,7 @@ class CacheModel(object):
     if start_index is not None:
       current_index = start_index
       current_entry = self.cache[start_index]
+      new_entry_encoding = current_entry.encoding
     else:
       # Start at root 
       current_index = self._index_of_encoding([])
@@ -559,7 +568,8 @@ class CacheModel(object):
           current_index = index
           current_entry = self.cache[current_index]
         else:
-          self._handle_miss(current_entry, new_entry_encoding, plaintext)
+          print("Handling miss\n\n\n\n\n\n\n\n")
+          self._handle_miss(current_entry, new_entry_encoding, new_plaintext)
 
     # Traversed up to leaf node or parent with correct child free
     if current_entry.is_leaf:

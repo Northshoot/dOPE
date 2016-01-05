@@ -85,12 +85,12 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len,
     tic = 0
     #event loop
     while tic < maxTics:
-        with open(sensor.cache.outfile, "a") as sensorF:
-            print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
-                  "---------------\n", file=sensorF)
-        with open(gateway.cache.outfile, "a") as gateF:
-            print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
-                  "---------------\n", file=gateF)
+        # with open(sensor.cache.outfile, "a") as sensorF:
+        #     print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
+        #           "---------------\n", file=sensorF)
+        # with open(gateway.cache.outfile, "a") as gateF:
+        #     print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
+        #           "---------------\n", file=gateF)
         #Generate data and place into queue
         if tic % dataTics == 0:
             sensor.generate_data()
@@ -99,16 +99,17 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len,
         if tic % networkTics == 0:
             sensor.receive_message()
             sensor.send_message()
-            convert_cache_to_forest(sensor.cache.cache, sensor.cache.outfile)
-            with open(sensor.cache.outfile, "a") as sensorF:
-                print(sensor.cache, file=sensorF)
+            # convert_cache_to_forest(sensor.cache.cache, sensor.cache.outfile)
+            # with open(sensor.cache.outfile, "a") as sensorF:
+            #     print(sensor.cache, file=sensorF)
 
             gateway.receive_message()
             gateway.send_message()
-            convert_cache_to_forest(gateway.cache.cache, gateway.cache.outfile)
-            with open(gateway.cache.outfile, "a") as gateF:
-                print(gateway.cache, file=gateF)
+            # convert_cache_to_forest(gateway.cache.cache, gateway.cache.outfile)
+            # with open(gateway.cache.outfile, "a") as gateF:
+            #     print(gateway.cache, file=gateF)
         tic += 1
+        print(tic)
    
 
    
