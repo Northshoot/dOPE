@@ -1,31 +1,25 @@
 __author__ = 'Wdaviau'
-from tiers.Tiers_FastCMSN import dSensor, dGateway
+from tiers.TiersFullNaive import dSensor, dGateway, dServer
 from  datastruct.binarytree import BSTree, enc_insert
 from time import time
 
 
-# For use comparing tree to verify rebalancing
-# As long as we go level by level we should be ok
-# The order should be preserved in the cache list
-# So not too much work
-def convert_cache_to_tree(cache):
-    # sort cache by encoding length
-    cache = sorted(cache, key = lambda x: len(x.encoding))
-    bstree = BSTree(cache[0].cipher_text)
-    for elt in cache[1:]:
-        enc_insert(bstree, elt.cipher_text, elt.encoding)
-
-    return bstree
-
-# Strip enc_root from enc.  If they don't match at the start return None
 def strip(enc_root, enc):
+    '''
+    Strip enc_root from enc.  If they don't match at the start return
+    None
+    '''
     if enc[:len(enc_root)] != enc_root:
         return None
     else: 
         return enc[len(enc_root):]
 
-# For non-connected cache convert into a forest
+
 def convert_cache_to_forest(cache, out_file):
+    '''
+    Print potentially fragmented cache as a forest of binary trees to
+    the provided outfile or stdout as default.
+    '''
     cache = sorted(cache, key=lambda x:len(x.encoding))
     trees = []
     encs = []
@@ -73,24 +67,28 @@ def convert_cache_to_forest(cache, out_file):
                 print("\n", file=logfile)
 
 
-
-def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len,
-         distribution = 'random'):
+def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
+         gate_cache_len, distribution = 'random'):
     ts = str(time())
-    sensor = dSensor(data_queue_len, distribution, cache_len, 
+    sensor = dSensor(data_queue_len, distribution, sensor_cache_len, 
                      "dSensorCache" + ts +".log")
-    gateway = dGateway("dGatewayCache" + ts + ".log")
+    gateway = dGateway("dGatewayCache" + ts + ".log", gate_cache_len)
+    server = dServer("dServerCache" + ts + ".log")
     sensor.link(gateway)
-    gateway.link(sensor)
+    gateway.link(sensor,server)
     tic = 0
     #event loop
     while tic < maxTics:
-        # with open(sensor.cache.outfile, "a") as sensorF:
-        #     print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
-        #           "---------------\n", file=sensorF)
-        # with open(gateway.cache.outfile, "a") as gateF:
-        #     print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
-        #           "---------------\n", file=gateF)
+        with open(sensor.cache.outfile, "a") as sensorF:
+            print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
+                  "---------------\n", file=sensorF)
+        with open(gateway.cache.outfile, "a") as gateF:
+            print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
+                  "---------------\n", file=gateF)
+        with open(server.cache.outfile, "a") as servF:
+            print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
+                  "---------------\n", file=servF)
+
         #Generate data and place into queue
         if tic % dataTics == 0:
             sensor.generate_data()
@@ -100,16 +98,23 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, cache_len,
             sensor.receive_message()
             sensor.send_message()
             convert_cache_to_forest(sensor.cache.cache, sensor.cache.outfile)
-            # with open(sensor.cache.outfile, "a") as sensorF:
-            #     print(sensor.cache, file=sensorF)
+            with open(sensor.cache.outfile, "a") as sensorF:
+                print(sensor.cache, file=sensorF)
             #     print(sensor.cache.cache, file=sensorF)
             #     print(sensor.cache.cache_lookup, file=sensorF)
-            gateway.receive_message()
-            gateway.send_message()
+            gateway.receive_sensor_message()
+            gateway.send2server()
             convert_cache_to_forest(gateway.cache.cache, gateway.cache.outfile)
-            # with open(gateway.cache.outfile, "a") as gateF:
-            #     print(gateway.cache, file=gateF)
+            with open(gateway.cache.outfile, "a") as gateF:
+                print(gateway.cache, file=gateF)
             #     print(gateway.cache.cache, file=gateF)
+            server.receive_message()
+            server.send_message()
+            convert_cache_to_forest(server.cache.cache, server.cache.outfile)
+            with open(server.cache.outfile, "a") as serverF:
+                print(server.cache, file=serverF)
+            gateway.receive_server_message()
+            gateway.send2sensor()
 
         tic += 1
         print(tic)
