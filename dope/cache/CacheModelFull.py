@@ -121,7 +121,7 @@ class CacheEntry(object):
         return encoding_cmp(self.encoding, other.encoding) < 0
 
     def __gt__(self, other):
-        return encdoing_cmp(self.encoding, other.encoding) < 0
+        return encdoing_cmp(self.encoding, other.encoding) > 0
 
     def __eq__(self, other):
         return self.encoding == other.encoding
@@ -677,7 +677,7 @@ class CacheModel(object):
         self.logger.info("Beginning merge of %d elements",len(incoming_entries))
         new_entries = list(filter(self.cache_no_contain, incoming_entries))
         self.cache.extend(new_entries)
-        self.current_size += 1
+        self.current_size += len(new_entries)
         for entry in incoming_entries:
             key = enc2string(entry.encoding)
             self.cache_lookup[key] = entry

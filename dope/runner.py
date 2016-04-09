@@ -3,18 +3,20 @@ __author__ = 'lauril, wDaviau'
 import sys, os, argparse
 
 
-def run(numTics, dataTics, networkTics, data_queue_len, distribution, cacheLength):
+def run(numTics, dataTics, networkTics, data_queue_len, distribution,
+        cacheS_len, cacheG_len):
     # import here because we need to set up syspath prior importing
     from mope.mope import mOPE_baseline
     
     # Run basline simulation
     mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, distribution)
 
-    from dope.dope import dOPE
+    from dope.dope_full import dOPE
 
    
     # Run the current dOPE simulation (Naive cache model right now )
-    dOPE(numTics, dataTics, networkTics, data_queue_len, cacheLength, distribution)
+    dOPE(numTics, dataTics, networkTics, data_queue_len, cacheS_len, 
+         cacheG_len, distribution)
     
 
 # def get_plot_data(numTics, dataTics, networkTics, data_queue_len, distribution):
@@ -34,12 +36,22 @@ if __name__ == "__main__":
     ## -dist 'd' : for a data arrival model following distribution d
     ##  choices for d are currently random, uniform, increasing, NOAA_temp
     parser = argparse.ArgumentParser(description= 'Naive dope simulation.')
-    parser.add_argument("-tics", "--numTics", type=int, help= "Set the number of tics in the simulation")
-    parser.add_argument("-dtics", "--dataTics", type=int, help= "Set the number of tics it takes for new data to arrive from the sensor")
-    parser.add_argument("-ntics", "--networkTics", type=int, help= "Set the number of tics it takes for the network to send a message round trip")
-    parser.add_argument("-qlen", "--data_queue_len", type=int, help= "Set the sensor's data queue length")
-    parser.add_argument("-dist", "--distribution", help= "Set the data model of the simulation")
-    parser.add_argument("-cacheL", "--cacheLength", type=int, help= "Set the cache length of the dOPE sensor")
+    parser.add_argument("-tics", "--numTics", type=int, 
+                        help= "Set the number of tics in the simulation")
+    parser.add_argument("-dtics", "--dataTics", type=int, 
+                        help= "Set the number of tics it takes for new data " +
+                        "to arrive from the sensor")
+    parser.add_argument("-ntics", "--networkTics", type=int, 
+                        help= "Set the number of tics it takes for the " +
+                        "network to send a message round trip")
+    parser.add_argument("-qlen", "--data_queue_len", type=int, 
+                        help= "Set the sensor's data queue length")
+    parser.add_argument("-dist", "--distribution", 
+                        help= "Set the data model of the simulation")
+    parser.add_argument("-cacheSL", "--sensorcacheLength", type=int, 
+                        help= "Set the cache length of the dOPE sensor")
+    parser.add_argument("-cacheGL", "--gatewaycacheLength", type=int, 
+                        help = "Set the cache length of the dOPE gateway")
     args = parser.parse_args();
 
     # Set default values of arguments not taken from the command line
@@ -48,18 +60,22 @@ if __name__ == "__main__":
     networkTics = args.networkTics
     data_queue_len = args.data_queue_len
     distribution = args.distribution
-    cacheLength = args.cacheLength
+    cacheLengthS = args.sensorcacheLength
+    cacheLengthG = args.gatewaycacheLength
     if (numTics is None):
-      numTics = 1000
+        numTics = 10000
     if (dataTics is None):
-      dataTics = 1
+         dataTics = 1
     if (networkTics is None):
-      networkTics = 1
+        networkTics = 1
     if (data_queue_len is None):
-      data_queue_len = 900
+        data_queue_len = 1000
     if (distribution is None):
-      distribution = 'random'
-    if (cacheLength is None):
-      cacheLength = 100
+        distribution = 'random'
+    if (cacheLengthS is None):
+        cacheLengthS = 100
+    if (cacheLengthG is None):
+        cacheLengthG = 1000
 
-    sys.exit(run(numTics, dataTics, networkTics, data_queue_len, distribution, cacheLength))
+    sys.exit(run(numTics, dataTics, networkTics, data_queue_len, distribution,
+                 cacheLengthS, cacheLengthG))

@@ -7,25 +7,6 @@ import csv
 Functions defining mOPE simulation
 '''
 
-# For use debugging communication channels
-def print_sensor_comm(sensor):
-    print("Sensor -> gateway: " + str(sensor.communicator.sent) )
-    print("Gateway -> sensor: " + str(sensor.communicator.received) )
-    print("\n")
-
-def print_server_comm(server):
-    print("Server -> gateway: " + str(server.communicator.sent) )
-    print("Gateway -> server: " + str(server.communicator.received) )
-    print("\n")
-
-def print_gateway_comm(gateway):
-    print("Gateway -> sensor: " + str(gateway.communicator.sent) )
-    print("Sensor -> gateway: " + str(gateway.communicator.received) )
-    print("Gateway -> server: " + str(gateway.communicator2.sent) )
-    print("Server -> gateway: " + str(gateway.communicator2.received) )
-    print("\n")
-
-
 def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, distribution = 'random'):
  
     #initialization and linking of tiers

@@ -36,3 +36,12 @@ def parseNOAAFile(filename, columnNumber):
          data_values.append(data_val)
 
    return data_values
+
+def parseNOAAFile2File(filein, fileout, columnNumber):
+    data_values = parseNOAAFile(filein, columnNumber)
+    min_val = min(data_values) * 10
+    with open(fileout, 'w') as f:
+        for dataval in data_values:
+            newdv = (10 * dataval) + min_val
+            f.write("%s,\n" % dataval)
+

@@ -14,10 +14,11 @@ def main():
   mid_ind = [x + 0.4 for x in ind]
   #            1000               10000                    100000
   # NOAA   Random   Increase   NOAA  Random Increase    NOAA Random Increase
+  # 1820, 15249 inserts 100000 increase
   rts_m = [ 5.2, 6.1, 6.9, 6.9, 6.8, 9.7, 7.8, 6.8, 12.6]
   rts_m = [ 5.2, 6.9, 7.8, 6.1, 6.8, 6.8, 6.9, 9.7, 12.6]
-  rts_d = [ 2.6, 2.5, 4.4, 1.5, 1.9, 9.7, 1.3, 1.9, 9.52]
-  rts_d = [ 2.6, 1.5, 1.3, 2.5, 1.9, 1.9, 4.4, 9.7, 9.5]
+  rts_d = [ 2.6, 2.5, 4.4, 1.5, 1.9, 5.5, 1.3, 1.9, 6.6]
+  rts_d = [ 2.6, 1.5, 1.3, 2.5, 1.9, 1.9, 4.4, 5.5, 6.6]
   p1 = plt.bar(ind, rts_m, width=0.4, color="#bfbfbf")
   p2 = plt.bar(mid_ind, rts_d, width=0.4, color="#333333")
   plt.ylim([0,16])

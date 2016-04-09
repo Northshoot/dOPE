@@ -41,6 +41,7 @@ class dSensor(Tier):
         self.data_queue = queue.Queue(data_queue_len)
         self.insert_round_trips = []
         self.cache = cache.CacheModel(cache_len, out_file)
+        self.done = False
 
     def generate_data(self):
         ''' Method generate_data
@@ -57,9 +58,15 @@ class dSensor(Tier):
             # If queue is not empty then pop one off
             if not self.data_queue.empty():
                 popped_ptext = self.data_queue.get_nowait()
+                if popped_ptext == -9999:
+                    self.done = True;
+                    return
                 self.data_queue.put_nowait(plaintxt)
                 self.cache.insert(popped_ptext)
             else:
+                if plaintxt == -9999:
+                    self.done = True;
+                    return
                 self.cache.insert(plaintxt)
             self.num_data_sent += 1
             return
@@ -136,6 +143,8 @@ class dGateway(Tier):
         self.sensor_msg2send = None
         self.server_msg2send = None
         self.cache = cache.CacheModel(cache_len, out_file)
+        self.sensor_message_count = 0
+        self.cloud_message_count = 0
 
     def send2sensor(self):
         ''' Method send_message
@@ -151,6 +160,7 @@ class dGateway(Tier):
 
     def send2server(self):
         if self.server_msg2send is not None:
+            self.cloud_message_count += 1
             self.cache.logger.info("Sending message to server")
             self.communicator2.send((self.server_msg2send.entry,
                                      self.server_msg2send.start_flag,
@@ -168,6 +178,7 @@ class dGateway(Tier):
                                    str(rebalance_msg.entry.cipher_text) + 
                                    " to server")
         elif len(self.cache.sync_messages) > 0:
+            self.cloud_message_count += 1
             self.cache.logger.info("Sending delayed sync to server")
             sync_msg = self.cache.sync_messages.pop(0)
             self.cache.acknowledge_sync(sync_msg.entry.encoding)
@@ -190,6 +201,7 @@ class dGateway(Tier):
         # Receive sensor message
         packet = self.communicator.read()
         if packet is not None:
+            self.sensor_message_count += 1
             entry = packet.data[0]
             start_flag = packet.data[1]
             end_flag = packet.data[2]

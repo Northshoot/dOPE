@@ -92,6 +92,8 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
         #Generate data and place into queue
         if tic % dataTics == 0:
             sensor.generate_data()
+            if sensor.done:
+                print("Finished! Gateway received " + str(gateway.sensor_mesage_count) + " Gateway sent " + str(cloud_message_count))
 
         # Send packets between devices
         if tic % networkTics == 0:
