@@ -7,12 +7,11 @@ import csv
 Functions defining mOPE simulation
 '''
 
-def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, distribution = 'random'):
- 
+def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, k, distribution = 'random'):
     #initialization and linking of tiers
     sensor = Sensor(data_queue_len, distribution)
     gateway = Gateway()
-    server = Server()
+    server = Server(k)
 
     sensor.link(gateway)
     gateway.link(sensor,server)
@@ -23,6 +22,10 @@ def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, distribution =
         # Generate data and place in lower priority queue.
         if tic % dataTics == 0:
             sensor.generate_data()
+            if sensor.done:
+                print("Finished! Gateway received " + str(gateway.sensor_message_count) + " Gateway sent " + str(gateway.cloud_message_count))
+                print(server.mOPE_struct.num_rebal)
+                break
 
         # Send packets between devices
         if tic % networkTics == 0:
@@ -42,9 +45,8 @@ def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, distribution =
 
   # Print the resulting mOPE data struct at the server
     print("The resulting tree structure")
-    print(server.mOPE_struct)
+    print(list(server.mOPE_struct))
     print( "For " + str( sensor.num_data_sent - sensor.data_queue.qsize()) + " total inserts")
-    print("Causing " + str(server.num_rebalances) + " rebalances\n")
     print("And " + str(sensor.num_gen - sensor.num_data_sent) + " dropped packets")
  
     with open("Round_trips_mope.csv", "w") as f:

@@ -9,9 +9,10 @@ def run(numTics, dataTics, networkTics, data_queue_len, distribution,
     from mope.mope import mOPE_baseline
     
     # Run basline simulation
-    mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, distribution)
+    k = 10 # Talos value for k-ary tree branching
+    mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, k, distribution)
 
-    from dope.dope_full import dOPE
+    from dope.dope_B import dOPE
 
    
     # Run the current dOPE simulation (Naive cache model right now )
@@ -63,7 +64,7 @@ if __name__ == "__main__":
     cacheLengthS = args.sensorcacheLength
     cacheLengthG = args.gatewaycacheLength
     if (numTics is None):
-        numTics = 10000
+        numTics = 100000
     if (dataTics is None):
          dataTics = 1
     if (networkTics is None):
