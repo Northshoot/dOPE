@@ -226,12 +226,8 @@ class CacheModel(object):
             entry = self._entry_with_encoding(current_node_start.node_encoding,
                                               node_idx)
 
-        # End of the node
-        if entry is None:
-            node_idx += 1
-
         # Repeat
-        elif entry.cipher_text == new_plaintext:
+        if entry is not None and entry.cipher_text == new_plaintext:
             return None
 
         return node_idx

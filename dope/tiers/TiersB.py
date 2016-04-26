@@ -340,6 +340,7 @@ class dServer(Tier):
                         enumerate(node.keys)]
         for entry in entries2send:
             entry.is_leaf = node.isLeaf
+            entry.synced = True
         self.message2send = OutgoingMessage(messageType[0], entries2send)
 
     def handle_rebalance(self, entry, start_flag, end_flag):

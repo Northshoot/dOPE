@@ -7,12 +7,20 @@ class BTNode:
         self.children = []
         self.keys = []
 
+    def __str__(self):
+
+
 class BTree:
     def __init__(self, k):
         self.root = BTNode(True)
         self.k = k
         self.t = int(k/2)
         self.num_rebal = 0
+
+    def __str__(self):
+        # Traverse level by level to get all keys, then print
+        
+
 
     def insert_direct(self, val, enc, node_idx):
         '''
@@ -45,8 +53,10 @@ class BTree:
         '''
         Trigger a rebalance in the overfull node located at enc
         '''
+        t = self.t
+
         # Root rebalance
-        if enc == []:
+        if self.root.n == 2*t -1:
             old_root = self.root
             self.root = BTNode(False)
             self.root.n = 0
@@ -54,14 +64,18 @@ class BTree:
             self.split_child(self.root, 0)
         # Non-root rebalance
         else:
-            parent_enc = enc[:-1]
-            child_idx = enc[-1]
-
-            parent = self.root
-            for index in parent_enc:
-                parent = parent.children[index]
-
-            self.split_child(parent, child_idx)
+            node = self.root
+            while enc != []:
+                child_idx = enc.pop(0)
+                if node.children[child_idx].n == 2*t - 1:
+                    # Calculate new encoding
+                    self.split_child(node,child_idx)
+                    if enc != []:
+                        child_idx = child_idx if enc[0] < t else child_idx + 1
+                        node = node.children[child_idx]
+                        enc[0] = enc[0] if enc[0] < t else enc[0] - t
+                else:
+                    node = node.children[child_idx]
 
 
 
