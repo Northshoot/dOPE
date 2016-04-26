@@ -68,12 +68,12 @@ def convert_cache_to_forest(cache, out_file):
 
 
 def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
-         gate_cache_len, distribution = 'random'):
+         gate_cache_len, distribution = 'random', k = 5):
     ts = str(time())
     sensor = dSensor(data_queue_len, distribution, sensor_cache_len, 
-                     "dSensorCache" + ts +".log")
-    gateway = dGateway("dGatewayCache" + ts + ".log", gate_cache_len)
-    server = dServer("dServerCache" + ts + ".log")
+                     "dSensorCache" + ts +".log", k)
+    gateway = dGateway("dGatewayCache" + ts + ".log", gate_cache_len, k)
+    server = dServer("dServerCache" + ts + ".log", k)
     sensor.link(gateway)
     gateway.link(sensor,server)
     tic = 0
@@ -100,7 +100,6 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
                 print("Evictions: " + str(gateway.evict_count))
 
                 break
-        print("Total misses: " + str(gateway.miss_count))
         # Send packets between devices
         if tic % networkTics == 0:
             sensor.receive_message()
@@ -123,7 +122,6 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
 
         tic += 1
         print(tic)
-        print("Inserted so far: " + str(sensor.num_data_sent - sensor.data_queue.qsize()))
    
 
    
@@ -134,7 +132,7 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
     print("The resulting tree(s) at the sensor")
     #convert_cache_to_forest(sensor.cache.cache, None)
     print("The resulting cache at the gateway")
-    gateway.cache.cache.sort(key = lambda x: len(x.encoding))
+    gateway.cache.cache.sort(key = lambda x: len(x.node_encoding))
     print(gateway.cache)
     #convert_cache_to_forest(gateway.cache.cache, None)
 

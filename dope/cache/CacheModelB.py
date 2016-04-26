@@ -118,7 +118,10 @@ class CacheModel(object):
         Evict all entries from the least recently used node of the cache
         '''
         zero_nodes = [entry for entry in self.cache if entry.node_index == 0]
+        print("Zero nodes " + str(zero_nodes))
         sorted_zero_nodes = sorted(zero_nodes, key=lambda x: x.lru)
+        if sorted_zero_nodes[0].node_encoding == []:
+            sorted_zero_nodes.pop(0)
         node = [entry for entry in self.cache if entry.node_encoding == 
                 sorted_zero_nodes[0].node_encoding]
         self.cache = [x for x in self.cache if not x in node]
@@ -140,6 +143,7 @@ class CacheModel(object):
         if entry == []:
             entry = None
         else:
+            assert(len(entry) == 1)
             entry = entry[0]
         return entry
 
@@ -219,8 +223,6 @@ class CacheModel(object):
         node_idx = 0
         entry = current_node_start
         while entry is not None and entry.cipher_text < new_plaintext:
-            print("we're loopin")
-            print(str(entry))
             entry.lru = self.lru_tag
             node_idx += 1
             entry = self._entry_with_encoding(current_node_start.node_encoding,
@@ -317,7 +319,7 @@ class CacheModel(object):
         new_entry = self._update_node(new_entry_encoding, new_plaintext)
         self.lru_tag += 1
         if new_entry is None:
-            print("NONE")
+            return
         new_entry_cp = copy.deepcopy(new_entry)
 
         # Sync with higher tiers
@@ -338,7 +340,15 @@ class CacheModel(object):
         Filter incoming entries, evict old entries as necessary 
         '''
         self.current_size += len(incoming_entries)
-        self.merge(incoming_entries)
+        for new in incoming_entries:
+            # Find the node to which this entry belongs
+            node = [entry for entry in self.cache if entry.node_encoding == 
+                    new.node_encoding ]
+            # Update the other entries at this node
+            for entry in node:
+                if entry.node_index >= new.node_index:
+                    entry.node_index += 1
+            self.cache.append(new)
 
         # Handle any evictions
         if not self.max_size is None:

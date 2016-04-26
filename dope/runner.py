@@ -17,7 +17,7 @@ def run(numTics, dataTics, networkTics, data_queue_len, distribution,
    
     # Run the current dOPE simulation (Naive cache model right now )
     dOPE(numTics, dataTics, networkTics, data_queue_len, cacheS_len, 
-         cacheG_len, distribution)
+         cacheG_len, distribution, k)
     
 
 # def get_plot_data(numTics, dataTics, networkTics, data_queue_len, distribution):

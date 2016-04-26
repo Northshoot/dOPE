@@ -32,7 +32,7 @@ class dSensor(Tier):
     are blocking and to send rebalance, insert, evict and sync messages
     as well as to receive insert response messages.
     '''
-    def __init__(self, data_queue_len, distribution, cache_len, out_file):
+    def __init__(self, data_queue_len, distribution, cache_len, out_file, k):
         super(dSensor,self).__init__('Sensor',Communicator())
         self.data_gen = DataGenerator(distribution, bounds = [-1000,1000])
         self.num_data_sent = 0
@@ -40,7 +40,7 @@ class dSensor(Tier):
         self.comp_req_queue = queue.Queue(1)
         self.data_queue = queue.Queue(data_queue_len)
         self.insert_round_trips = []
-        self.cache = cache.CacheModel(cache_len, out_file)
+        self.cache = cache.CacheModel(cache_len, out_file, int(k/2))
         self.done = False
 
     def generate_data(self):
@@ -137,14 +137,14 @@ class dGateway(Tier):
     full, pushes rebalance messages through to server and flushes 
     cache, responds to insert messages querying server if necessary
     '''
-    def __init__(self, out_file, cache_len = 1000):
+    def __init__(self, out_file, cache_len = 1000, k=5):
         super(dGateway,self).__init__('Gateway', Communicator(), Communicator())
         self.rebalance_received = []
         self.rebalance2send = []
         self.rebalance_root_enc = None
         self.sensor_msg2send = None
         self.server_msg2send = None
-        self.cache = cache.CacheModel(cache_len, out_file)
+        self.cache = cache.CacheModel(cache_len, out_file, int(k/2))
         self.sensor_message_count = 0
         self.sync_count = 0
         self.rebal_count = 0
@@ -308,13 +308,13 @@ class dServer(Tier):
     eviction, rebalance and sync messages and to send back insert 
     replies.
     '''
-    def __init__(self, out_file):
+    def __init__(self, out_file, k):
         super(dServer,self).__init__('Server',Communicator())
         self.rebalance_entries = []
         self.root_enc = None
         self.message2send = None
         self.cache = cache.CacheModel(None, out_file)
-        self.tree = btree.BTree(10)
+        self.tree = btree.BTree(k)
 
     def send_message(self):
         ''' Method send_message
@@ -357,6 +357,7 @@ class dServer(Tier):
             assert(self.rebalance_entries == [] and self.root_enc is None)
             # Initial rebalance entry is the root encoding
             self.root_enc = entry
+            self.cache.logger.info("Rebalance encoding" + str(self.root_enc))
         if not start_flag:
             self.cache.logger.info("Rebalance cipher: " + 
                                    str(entry.cipher_text))
@@ -398,10 +399,13 @@ class dServer(Tier):
             self.cache.logger.info("Receiving insert request")
             encoding = entry
             self.handle_insert(encoding)
+            self.cache.logger.info(str(self.tree))
             
         elif packet.call_type == "rebalance":
             self.cache.logger.info("Receiving rebalance request")
             self.handle_rebalance(entry, start_flag, end_flag)
+            self.cache.logger.info(str(self.tree))
+
             
         elif packet.call_type == "evict":
             self.cache.logger.info("Receiving evicted entry")
@@ -416,6 +420,8 @@ class dServer(Tier):
             # Do an insert into the B tree
             self.tree.insert_direct(entry.cipher_text, entry.node_encoding,
                                     entry.node_index)
+            self.cache.logger.info(str(self.tree))
+
         else:
             self.cache.logger.error("Packet of call type %s received", 
                                     packet.call_type)
