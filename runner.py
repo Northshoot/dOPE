@@ -6,13 +6,13 @@ import sys, os, argparse
 def run(numTics, dataTics, networkTics, data_queue_len, distribution,
         cacheS_len, cacheG_len):
     # import here because we need to set up syspath prior importing
-    from .mope import mOPE_baseline
+    from dope import mOPE_baseline
     
     # Run basline simulation
     k = 10 # Talos value for k-ary tree branching
     mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, k, distribution)
 
-    from .dope import dOPE
+    from dope import dOPE
 
    
     # Run the current dOPE simulation (Naive cache model right now )

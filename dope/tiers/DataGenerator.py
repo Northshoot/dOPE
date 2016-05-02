@@ -1,7 +1,7 @@
 __author__ = 'lauril & wdaviau'
 
 import random
-from parsers.parseSubHourlyWD import parseNOAAFile
+from ..parsers import parseNOAAFile
 
 
 class DataGenerator(object):

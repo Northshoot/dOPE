@@ -25,6 +25,8 @@
 #    21   WET_FLAG                       X
 #    22   WIND_1_5                       m/s
 #    23   WIND_FLAG                      X
+#  ftp://ftp.ncdc.noaa.gov/pub/data/uscrn/products/subhourly01/
+
 def parseNOAAFile(filename, columnNumber):
    # Return list
    data_values = []

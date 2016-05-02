@@ -1,7 +1,5 @@
 __author__ = 'WDaviau'
-from tiers.Tiers import Sensor, Gateway, Server
-from comm.packet import Packet
-import csv
+from ..tiers import Sensor, Gateway, Server
 
 '''
 Functions defining mOPE simulation
@@ -57,4 +55,3 @@ def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, k, distributio
         for i in range(0,len(sensor.insert_round_trips)):
             f.write(str(sensor.insert_round_trips[i])+"\n")
 
- 

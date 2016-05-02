@@ -1,11 +1,10 @@
 __author__ = 'WDaviau'
-from comm.comm import Communicator
-from .DataGenerator import DataGenerator
-import datastruct.btree_enc as btree
-from utils import debugmethods
 import queue
-import cache.CacheModelB as cache
-from cache.CacheModelB import OutgoingMessage, messageType, CacheEntry
+from ..comm import Communicator
+from .DataGenerator import DataGenerator
+from ..datastruct import BTree
+from ..cache import CacheModelB as cache
+from ..cache import OutgoingMessage, messageType, CacheEntry
 import copy
 
 class Tier(object):
@@ -341,7 +340,7 @@ class dServer(Tier):
         self.root_enc = None
         self.message2send = None
         self.cache = cache.CacheModel(None, out_file)
-        self.tree = btree.BTree(k)
+        self.tree = BTree(k)
 
     def send_message(self):
         ''' Method send_message

@@ -1,6 +1,5 @@
 __author__ = 'Wdaviau'
-from tiers.TiersB import dSensor, dGateway, dServer
-from datastruct.binarytree import BSTree, enc_insert
+from ..tiers import dSensor, dGateway, dServer
 from time import time
 from functools import reduce
 
