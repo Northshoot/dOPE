@@ -74,9 +74,9 @@ if __name__ == "__main__":
     if (distribution is None):
         distribution = 'random'
     if (cacheLengthS is None):
-        cacheLengthS = 100
+        cacheLengthS = 20
     if (cacheLengthG is None):
-        cacheLengthG = 1000
+        cacheLengthG = 100
 
     sys.exit(run(numTics, dataTics, networkTics, data_queue_len, distribution,
                  cacheLengthS, cacheLengthG))

@@ -46,6 +46,7 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
                 avg_traversals[1] /= n_miss_inserts
                 print('Traversal breakdown: ' + str(avg_traversals))
                 print('Send message count: ' + str(sensor.send_message_count))
+                print('Plaintexts who miss: ' + str(sensor.cache.plaintexts_who_miss))
 
 
                 break

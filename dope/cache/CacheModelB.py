@@ -87,6 +87,7 @@ class CacheModel(object):
         self.outfile = logfile
 
         self.evict_count = 0
+        self.plaintexts_who_miss = []
 
     def __str__(self):
         sizes = ("Max Size: " + str(self.max_size) + "\nCurrent Size: " +
@@ -211,6 +212,7 @@ class CacheModel(object):
         Request the next entry along the encoding path to complete
         the current insert
         '''
+        self.plaintexts_who_miss.append(plaintext)
         self.logger.info("Handling cache miss")
         if len(self.cache) == self.max_size:
             self._evict_node()

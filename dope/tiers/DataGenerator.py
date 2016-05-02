@@ -23,9 +23,14 @@ class DataGenerator(object):
 
     def get_next(self):
         if self.distribution == 'random' :
+            self.current += 1
+            if self.current == 1001:
+                return -9999
             return random.randint(self.bounds[0], self.bounds[1])
         elif self.distribution == 'increasing':
             self.current += 1
+            if self.current == 1001:
+                return -9999
             return self.current
         elif self.distribution == 'uniform':
             return random.uniform(self.bounds[0], self.bounds[1])

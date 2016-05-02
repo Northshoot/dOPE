@@ -25,6 +25,10 @@ def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, k, distributio
             if sensor.done:
                 print("Finished! Gateway received " + str(gateway.sensor_message_count) + " Gateway sent " + str(gateway.cloud_message_count))
                 print(server.mOPE_struct.num_rebal)
+                print("Number of ciphers received at sensor: " + str(sensor.ciphers_from_cloud))
+                print('Number of ciphers sent by sensor: ' + str(sensor.num_data_sent))
+                print('Avg message size: ' + str(sensor.avg_msg_size))
+                print('Avg traversals: ' + str(server.avg_traversal))
                 break
 
         # Send packets between devices
