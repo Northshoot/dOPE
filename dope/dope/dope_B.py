@@ -2,13 +2,15 @@ __author__ = 'Wdaviau'
 from ..tiers import dSensor, dGateway, dServer
 from time import time
 from functools import reduce
+from ..utils import print_ctrl
 
 
 def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
-         gate_cache_len, distribution = 'random', k = 5):
+         gate_cache_len, distribution = 'random', k = 5, data_file = None):
+    print("dope")
     ts = str(time())
     sensor = dSensor(data_queue_len, distribution, sensor_cache_len, 
-                     "dSensorCache" + ts +".log", k)
+                     "dSensorCache" + ts +".log", k, data_file)
     gateway = dGateway("dGatewayCache" + ts + ".log", gate_cache_len, k)
     server = dServer("dServerCache" + ts + ".log", k)
     sensor.link(gateway)
@@ -16,15 +18,15 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
     tic = 0
     #event loop
     while tic < maxTics:
-        with open(sensor.cache.outfile, "a") as sensorF:
-            print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
-                  "---------------\n", file=sensorF)
-        with open(gateway.cache.outfile, "a") as gateF:
-            print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
-                  "---------------\n", file=gateF)
-        with open(server.cache.outfile, "a") as servF:
-            print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
-                  "---------------\n", file=servF)
+        # with open(sensor.cache.outfile, "a") as sensorF:
+        #     print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
+        #           "---------------\n", file=sensorF)
+        # with open(gateway.cache.outfile, "a") as gateF:
+        #     print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
+        #           "---------------\n", file=gateF)
+        # with open(server.cache.outfile, "a") as servF:
+        #     print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
+        #           "---------------\n", file=servF)
 
         #Generate data and place into queue
         if tic % dataTics == 0:
@@ -53,37 +55,37 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
         if tic % networkTics == 0:
             sensor.receive_message()
             sensor.send_message()
-            with open(sensor.cache.outfile, "a") as sensorF:
-                print(sensor.cache, file=sensorF)
+            # with open(sensor.cache.outfile, "a") as sensorF:
+            #     print(sensor.cache, file=sensorF)
             #     print(sensor.cache.cache, file=sensorF)
             #     print(sensor.cache.cache_lookup, file=sensorF)
             gateway.receive_sensor_message()
             for entry in gateway.cache.cache:
                 assert(entry not in sensor.cache.cache)
             gateway.send2server()
-            with open(gateway.cache.outfile, "a") as gateF:
-                print(gateway.cache, file=gateF)
+            # with open(gateway.cache.outfile, "a") as gateF:
+            #     print(gateway.cache, file=gateF)
             #     print(gateway.cache.cache, file=gateF)
             server.receive_message()
             server.send_message()
-            with open(server.cache.outfile, "a") as serverF:
-                print(server.cache, file=serverF)
+            # with open(server.cache.outfile, "a") as serverF:
+            #     print(server.cache, file=serverF)
             gateway.receive_server_message()
             gateway.send2sensor()
 
         tic += 1
-        print(tic)
+        print_ctrl(tic)
    
 
    
     print("The number of data recorded by the system")
     print(sensor.num_data_sent - sensor.data_queue.qsize())
-    print("The resulting cache at the sensor")
-    print(sensor.cache)
-    print("The resulting tree(s) at the sensor")
+    # print("The resulting cache at the sensor")
+    # print(sensor.cache)
+    # print("The resulting tree(s) at the sensor")
     #convert_cache_to_forest(sensor.cache.cache, None)
-    print("The resulting cache at the gateway")
-    gateway.cache.cache.sort(key = lambda x: len(x.node_encoding))
+    #print("The resulting cache at the gateway")
+    #gateway.cache.cache.sort(key = lambda x: len(x.node_encoding))
     #print(gateway.cache)
     #print(list(server.tree))
     #convert_cache_to_forest(gateway.cache.cache, None)

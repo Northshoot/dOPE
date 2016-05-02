@@ -47,3 +47,4 @@ def parseNOAAFile2File(filein, fileout, columnNumber):
             newdv = (10 * dataval) + min_val
             f.write("%s,\n" % dataval)
 
+

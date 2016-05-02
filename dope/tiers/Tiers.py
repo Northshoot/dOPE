@@ -27,9 +27,10 @@ class Sensor(Tier):
     '''
     IoT Sensor Class
     '''
-    def __init__(self, data_queue_len, distribution):
+    def __init__(self, data_queue_len, distribution, data_file=None):
         super(Sensor,self).__init__('Sensor',Communicator())
-        self.data_gen = DataGenerator(distribution)
+        print("mmope")
+        self.data_gen = DataGenerator(distribution, data_file)
         self.__sk = 0 # A dummy secret key that isn't used or properly initialized (yet)
         self.num_data_sent = 0
         self.ciphers_from_cloud = 0
@@ -39,6 +40,14 @@ class Sensor(Tier):
         self.data_queue = queue.Queue(data_queue_len)
         self.insert_round_trips = []
         self.done = False
+        self.sim_lim = None
+
+    @property
+    def sim_lim_reached(self):
+        if self.sim_lim is None:
+            return False
+        else:
+            return self.num_data_sent == self.sim_lim
 
     def encrypt(self,plaintxt):
         # A dummy encryption function that doesn't do anything
@@ -53,7 +62,7 @@ class Sensor(Tier):
         if not self.comp_req_queue.empty():
             # If link to gateway is free
             if self.communicator.sent is None:
-                comparison = self.comp_req_queue.get_nowait();
+                comparison = self.comp_req_queue.get_nowait()
                 self.insert_round_trips[-1] += 1
                 self.communicator.send(comparison, 'order_query' )
             return
@@ -64,9 +73,6 @@ class Sensor(Tier):
             # If link to gateway is free
             if self.communicator.sent is None:
                 cipher = self.data_queue.get_nowait()
-                if (cipher == -9999):
-                    self.done = True;
-                    return
                 self.num_data_sent += 1
                 self.communicator.send(cipher, 'insert')
             return
@@ -74,7 +80,10 @@ class Sensor(Tier):
     def generate_data(self):
         # Enqueue data for low priority sending 
         self.num_gen += 1
-        plaintxt = self.data_gen.get_next() 
+        plaintxt = self.data_gen.get_next()
+        if plaintxt is None or self.sim_lim_reached:
+            self.done = True
+            return
         cipher = self.encrypt(plaintxt)
         # Enqueue if there is room
         try:

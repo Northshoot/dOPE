@@ -1,6 +1,6 @@
 import copy
-import math
 import logging
+from ..utils import print_ctrl
 
 def decrypt(cipher):
     ''' Dummy decryption method
@@ -58,6 +58,7 @@ class CacheEntry(object):
         selfstr += "----------------------------\n"
         return selfstr
 
+
 class CacheModel(object):
     """ A representation of a dOPE cache.  Includes the list of 
         cache entries, a global lru tag, queues for outgoing 
@@ -109,12 +110,11 @@ class CacheModel(object):
         Add a new entry to the table, evicting a node if necessary
         '''
         if self.max_size is not None and len(self.cache) == self.max_size:
-            print("eviction triggered")
+            print_ctrl("eviction triggered")
             self._evict_node()
         self.logger.info("Adding %d to the cache", entry.cipher_text)
         self.cache.append(entry)
         self.current_size += 1
-
 
     def _evict_node(self):
         ''' Method _evict_node
@@ -123,7 +123,7 @@ class CacheModel(object):
         '''
         self.evict_count += 1
         zero_nodes = [entry for entry in self.cache if entry.node_index == 0]
-        print("Zero nodes " + str(zero_nodes))
+        print_ctrl("Zero nodes " + str(zero_nodes))
         sorted_zero_nodes = sorted(zero_nodes, key=lambda x: x.lru)
         if sorted_zero_nodes[0].node_encoding == []:
             sorted_zero_nodes.pop(0)

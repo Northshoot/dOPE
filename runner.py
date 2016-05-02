@@ -1,23 +1,28 @@
 __author__ = 'lauril, wDaviau'
 
 import sys, os, argparse
-
+import logging
+console = logging.StreamHandler()
+console.setLevel(logging.CRITICAL)
+formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+console.setFormatter(formatter)
+logging.getLogger('').addHandler(console)
 
 def run(numTics, dataTics, networkTics, data_queue_len, distribution,
-        cacheS_len, cacheG_len):
+        cacheS_len, cacheG_len,data_file):
     # import here because we need to set up syspath prior importing
     from dope import mOPE_baseline
-    
-    # Run basline simulation
+    #
+    # # Run basline simulation
     k = 10 # Talos value for k-ary tree branching
-    mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, k, distribution)
+    mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, k,
+                  distribution, data_file)
 
     from dope import dOPE
 
-   
     # Run the current dOPE simulation (Naive cache model right now )
     dOPE(numTics, dataTics, networkTics, data_queue_len, cacheS_len, 
-         cacheG_len, distribution, k)
+         cacheG_len, distribution, k, data_file)
     
 
 # def get_plot_data(numTics, dataTics, networkTics, data_queue_len, distribution):
@@ -55,30 +60,45 @@ if __name__ == "__main__":
                         help= "Set the cache length of the dOPE sensor")
     parser.add_argument("-cacheGL", "--gatewaycacheLength", type=int, 
                         help = "Set the cache length of the dOPE gateway")
-    args = parser.parse_args();
+    parser.add_argument("-f", "--file", type=str,
+                        help="File with NOAA data")
+    args = parser.parse_args()
 
     # Set default values of arguments not taken from the command line
     numTics = args.numTics
-    dataTics = args.dataTics
-    networkTics = args.networkTics
-    data_queue_len = args.data_queue_len
-    distribution = args.distribution
-    cacheLengthS = args.sensorcacheLength
-    cacheLengthG = args.gatewaycacheLength
-    if (numTics is None):
+    if numTics is None:
         numTics = 100000
-    if (dataTics is None):
+
+    dataTics = args.dataTics
+    if dataTics is None:
          dataTics = 1
-    if (networkTics is None):
+
+    networkTics = args.networkTics
+    if networkTics is None:
         networkTics = 1
-    if (data_queue_len is None):
+
+    data_queue_len = args.data_queue_len
+    if data_queue_len is None:
         data_queue_len = 1000
-    if (distribution is None):
+
+    data_file = None
+    distribution = args.distribution
+    if distribution is None:
         distribution = 'random'
-    if (cacheLengthS is None):
+    elif distribution == 'NOAA_temp':
+        data_file = args.file
+        if data_file is None:
+            data_file = 'data_sets/CRNS0101-05-2015-CA_Santa_Barbara_11_W.txt'
+            #data_file = 'data_sets/CRNS0101-05-2008-KY_Bowling_Green_21_NNE
+            # .txt'
+
+    cacheLengthS = args.sensorcacheLength
+    if cacheLengthS is None:
         cacheLengthS = 20
-    if (cacheLengthG is None):
+
+    cacheLengthG = args.gatewaycacheLength
+    if cacheLengthG is None:
         cacheLengthG = 100
 
     sys.exit(run(numTics, dataTics, networkTics, data_queue_len, distribution,
-                 cacheLengthS, cacheLengthG))
+                 cacheLengthS, cacheLengthG, data_file=data_file))

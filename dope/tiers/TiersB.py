@@ -1,11 +1,13 @@
-__author__ = 'WDaviau'
 import queue
+import copy
 from ..comm import Communicator
 from .DataGenerator import DataGenerator
 from ..datastruct import BTree
 from ..cache import CacheModelB as cache
 from ..cache import OutgoingMessage, messageType, CacheEntry
-import copy
+from ..utils import print_ctrl
+
+__author__ = 'WDaviau'
 
 class Tier(object):
     '''
@@ -24,6 +26,7 @@ class Tier(object):
             self.communicator2.connect(other_tier2.communicator)
             other_tier2.communicator.connect(self.communicator2)
 
+
 class dSensor(Tier):
     '''
     Sensor class in dOPE hierarchy.  Equipped to generate data and
@@ -31,9 +34,10 @@ class dSensor(Tier):
     are blocking and to send rebalance, insert, evict and sync messages
     as well as to receive insert response messages.
     '''
-    def __init__(self, data_queue_len, distribution, cache_len, out_file, k):
+    def __init__(self, data_queue_len, distribution, cache_len, out_file, k, data_file):
         super(dSensor,self).__init__('Sensor',Communicator())
-        self.data_gen = DataGenerator(distribution, bounds = [-1000,1000])
+        self.data_gen = DataGenerator(distribution, bounds = [-1000,1000],
+                                      data_file = data_file)
         self.num_data_sent = 0
         self.num_gen = 0
         self.comp_req_queue = queue.Queue(1)
@@ -45,6 +49,14 @@ class dSensor(Tier):
         self.total_ciphers_sent = 0
         self.total_ciphers_received = 0
         self.send_message_count = 0
+        self.sim_lim = None
+
+    @property
+    def sim_lim_reached(self):
+        if self.sim_lim is None:
+            return False
+        else:
+            return self.send_message_count == self.sim_lim
 
     def generate_data(self):
         ''' Method generate_data
@@ -55,21 +67,18 @@ class dSensor(Tier):
         # Enqueue data for low priority sending 
         self.num_gen += 1
         plaintxt = self.data_gen.get_next()
+        if plaintxt is None or self.sim_lim_reached:
+            self.done = True
+            return
         if (len(self.cache.priority_messages) < 1 and not 
             self.cache.waiting_on_insert[0]):
             self.insert_round_trips.append(0)
             # If queue is not empty then pop one off
             if not self.data_queue.empty():
                 popped_ptext = self.data_queue.get_nowait()
-                if popped_ptext == -9999:
-                    self.done = True;
-                    return
                 self.data_queue.put_nowait(plaintxt)
                 self.cache.insert(popped_ptext)
             else:
-                if plaintxt == -9999:
-                    self.done = True;
-                    return
                 self.cache.insert(plaintxt)
             self.num_data_sent += 1
             return
@@ -100,7 +109,7 @@ class dSensor(Tier):
             message2send = self.cache.priority_messages.pop(0)
             if isinstance(message2send.entry, CacheEntry):
                 self.total_ciphers_sent += 1
-                print("Total ciphers sent: " + str(self.total_ciphers_sent))
+                print_ctrl("Total ciphers sent: " + str(self.total_ciphers_sent))
             self.communicator.send((message2send.entry, 
                                     message2send.start_flag,
                                     message2send.end_flag),

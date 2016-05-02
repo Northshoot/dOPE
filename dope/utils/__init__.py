@@ -3,6 +3,16 @@ __author__ = 'lauril'
 from functools import wraps
 from blessings import Terminal
 
+print_out = False
+
+
+def print_ctrl(msg):
+    if print_out:
+        print(msg)
+    else:
+        pass
+
+
 def debug(func):
     """
     A simple debugging decorator

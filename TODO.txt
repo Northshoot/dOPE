@@ -1,0 +1,14 @@
+please remove all print out statements, working with large data sets is very
+disturbing then
+https://docs.python.org/3.5/howto/logging-cookbook.html#logging-cookbook
+http://victorlin.me/posts/2012/08/26/good-logging-practice-in-python
+
+all the logging should be controller from the runner module, where we can set
+ ouput to console or just file
+
+ also separate the debug to info, error, debug, warning etc to have a clean data
+ for example we can use critical level to ouly collet data for plotting
+ rather than see all the print outs
+
+
+
