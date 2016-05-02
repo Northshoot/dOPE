@@ -36,6 +36,8 @@ if __name__ == "__main__":
     ## -qlen l : for data queue of length l
     ## -dist 'd' : for a data arrival model following distribution d
     ##  choices for d are currently random, uniform, increasing, NOAA_temp
+    # python3 runner.py -dist increasing
+    # python3 runner.py -dist NOAA_temp
     parser = argparse.ArgumentParser(description= 'Naive dope simulation.')
     parser.add_argument("-tics", "--numTics", type=int, 
                         help= "Set the number of tics in the simulation")

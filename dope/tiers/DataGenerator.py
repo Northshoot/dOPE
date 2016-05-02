@@ -35,6 +35,7 @@ class DataGenerator(object):
         elif self.distribution == 'uniform':
             return random.uniform(self.bounds[0], self.bounds[1])
         elif self.distribution == 'NOAA_temp':
+            #add reading new file if the old is over
             self.current += 1
             return self.timeseries[self.current %  ( len(self.timeseries) -1)]
         else:
