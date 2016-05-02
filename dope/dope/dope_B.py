@@ -2,69 +2,7 @@ __author__ = 'Wdaviau'
 from tiers.TiersB import dSensor, dGateway, dServer
 from datastruct.binarytree import BSTree, enc_insert
 from time import time
-
-
-def strip(enc_root, enc):
-    '''
-    Strip enc_root from enc.  If they don't match at the start return
-    None
-    '''
-    if enc[:len(enc_root)] != enc_root:
-        return None
-    else: 
-        return enc[len(enc_root):]
-
-
-def convert_cache_to_forest(cache, out_file):
-    '''
-    Print potentially fragmented cache as a forest of binary trees to
-    the provided outfile or stdout as default.
-    '''
-    cache = sorted(cache, key=lambda x:len(x.encoding))
-    trees = []
-    encs = []
-    if cache == []:
-        if out_file is None:
-            print([])
-        else:
-            with open(out_file, "a") as logfile:
-                print([], file=logfile)
-        return
-    trees.append(BSTree(cache[0].cipher_text))
-    encs.append([])
-    for elt in cache[1:]:
-        in_tree = 0
-        success = False
-        # Insert on the first tree that will accept it
-        while in_tree < len(trees) and not success:
-            enc = strip(encs[in_tree], elt.encoding)
-            if enc is None:
-                in_tree += 1
-                continue
-            try:
-                enc_insert(trees[in_tree], elt.cipher_text, enc)
-                success = True
-            except ValueError as e:
-                # current encoding tree
-                in_tree += 1
- 
-        # Insert doesn't work on anyone else? Add a new tree to trees
-        if not success:
-            trees.append(BSTree(elt.cipher_text))
-            encs.append(elt.encoding)
-    if out_file is None:
-        for idx in range(len(trees)):
-            print("\n")
-            print(str(trees[idx]))
-            print("Root Encoding: " + str(encs[idx]))
-            print("\n")
-    else:
-        with open(out_file, "a") as logfile:
-            for idx in range(len(trees)):
-                print("\n", file=logfile)
-                print(str(trees[idx]), file=logfile)
-                print("Root Encoding: " + str(encs[idx]), file=logfile)
-                print("\n", file=logfile)
+from functools import reduce
 
 
 def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
@@ -97,7 +35,18 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
                 print("Misses: " + str(gateway.miss_count) )
                 print("Syncs: " + str(gateway.sync_count))
                 print("Rebals: " + str(gateway.rebal_count))
-                print("Evictions: " + str(gateway.evict_count))
+                print("Evictions: " + str(sensor.cache.evict_count))
+                print("Number of ciphers received at sensor: " + str(sensor.total_ciphers_received))
+                print('Number of ciphers sent by sensor: ' + str(sensor.total_ciphers_sent))
+
+                n_miss_inserts = len(gateway.num_traversals)
+                print('Number of inserts requiring traversal: ' + str(n_miss_inserts))
+                avg_traversals = reduce(lambda a, x: [a[0]+x[0], a[1]+x[1]], gateway.num_traversals, [0,0])
+                avg_traversals[0] /= n_miss_inserts
+                avg_traversals[1] /= n_miss_inserts
+                print('Traversal breakdown: ' + str(avg_traversals))
+                print('Send message count: ' + str(sensor.send_message_count))
+
 
                 break
         # Send packets between devices
@@ -109,6 +58,8 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
             #     print(sensor.cache.cache, file=sensorF)
             #     print(sensor.cache.cache_lookup, file=sensorF)
             gateway.receive_sensor_message()
+            for entry in gateway.cache.cache:
+                assert(entry not in sensor.cache.cache)
             gateway.send2server()
             with open(gateway.cache.outfile, "a") as gateF:
                 print(gateway.cache, file=gateF)
@@ -133,7 +84,8 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
     #convert_cache_to_forest(sensor.cache.cache, None)
     print("The resulting cache at the gateway")
     gateway.cache.cache.sort(key = lambda x: len(x.node_encoding))
-    print(gateway.cache)
+    #print(gateway.cache)
+    #print(list(server.tree))
     #convert_cache_to_forest(gateway.cache.cache, None)
 
 

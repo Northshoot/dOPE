@@ -7,8 +7,6 @@ class BTNode:
         self.children = []
         self.keys = []
 
-    def __str__(self):
-
 
 class BTree:
     def __init__(self, k):
@@ -18,8 +16,31 @@ class BTree:
         self.num_rebal = 0
 
     def __str__(self):
-        # Traverse level by level to get all keys, then print
-        
+        # Enqueue all nodes
+        node_q = [self.root]
+        string_q = []
+        level_count = 0
+        level_total = 1  
+        next_level_total = 0      
+        while node_q:
+            node = node_q.pop(0)
+            level_count += 1
+            next_level_total += 1 + node.n
+            # Add strings to print keys of tree
+            string_q.append(' | ')
+            for key in node.keys:
+                string_q.append(' ' + str(key) + ' ')
+            string_q.append(' | ')
+
+            if level_count == level_total:
+                string_q.append('\n')
+                level_count = 0
+                level_total = next_level_total
+            # Add nodes to queue to continue traversal
+            for node in node.children:
+                node_q.append(node)
+
+        return ''.join(string_q)
 
 
     def insert_direct(self, val, enc, node_idx):
@@ -62,20 +83,21 @@ class BTree:
             self.root.n = 0
             self.root.children.append(old_root)
             self.split_child(self.root, 0)
-        # Non-root rebalance
-        else:
-            node = self.root
-            while enc != []:
-                child_idx = enc.pop(0)
-                if node.children[child_idx].n == 2*t - 1:
-                    # Calculate new encoding
-                    self.split_child(node,child_idx)
-                    if enc != []:
-                        child_idx = child_idx if enc[0] < t else child_idx + 1
-                        node = node.children[child_idx]
-                        enc[0] = enc[0] if enc[0] < t else enc[0] - t
-                else:
+            if enc != []:
+                enc.insert(0, 0 if enc[0] < t else 1)
+                enc[1] = enc[1] if enc[1] < t else enc[1] - t
+        node = self.root
+        while enc != []:
+            child_idx = enc.pop(0)
+            if node.children[child_idx].n == 2*t - 1:
+                # Calculate new encoding
+                self.split_child(node,child_idx)
+                if enc != []:
+                    child_idx = child_idx if enc[0] < t else child_idx + 1
                     node = node.children[child_idx]
+                    enc[0] = enc[0] if enc[0] < t else enc[0] - t
+            else:
+                node = node.children[child_idx]
 
 
 

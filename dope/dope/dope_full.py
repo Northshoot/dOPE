@@ -2,6 +2,8 @@ __author__ = 'Wdaviau'
 from tiers.TiersFullNaive import dSensor, dGateway, dServer
 from  datastruct.binarytree import BSTree, enc_insert
 from time import time
+from functools import reduce
+
 
 
 def strip(enc_root, enc):
@@ -93,8 +95,22 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
         if tic % dataTics == 0:
             sensor.generate_data()
             if sensor.done:
-                print("Finished! Gateway received " + str(gateway.sensor_mesage_count) + " Gateway sent " + str(cloud_message_count))
+                print("Finished! Gateway received " + str(gateway.sensor_message_count) + " Gateway sent " + str(gateway.cloud_message_count))
+                print("Misses: " + str(gateway.miss_count) )
+                print("Syncs: " + str(gateway.sync_count))
+                print("Rebals: " + str(gateway.rebal_count))
+                print("Evictions: " + str(sensor.cache.evict_count))
+                n_miss_inserts = len(gateway.num_traversals)
+                print("Number of ciphers received at sensor: " + str(sensor.total_ciphers_received))
+                print('Number of ciphers sent by sensor: ' + str(sensor.total_ciphers_sent))
+                print('Number of inserts requiring traversal: ' + str(n_miss_inserts))
+                avg_traversals = reduce(lambda a, x: [a[0]+x[0], a[1]+x[1]], gateway.num_traversals, [0,0])
+                avg_traversals[0] /= n_miss_inserts
+                avg_traversals[1] /= n_miss_inserts
+                print('Traversal breakdown: ' + str(avg_traversals))
 
+                break
+        print("Total misses: " + str(gateway.miss_count))
         # Send packets between devices
         if tic % networkTics == 0:
             sensor.receive_message()
@@ -120,6 +136,7 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
 
         tic += 1
         print(tic)
+        print("Inserted so far: " + str(sensor.num_data_sent - sensor.data_queue.qsize()))
    
 
    
@@ -133,6 +150,7 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
     gateway.cache.cache.sort(key = lambda x: len(x.encoding))
     print(gateway.cache)
     convert_cache_to_forest(gateway.cache.cache, None)
+    convert_cache_to_forest(server.cache.cache, None)
 
 
     # print("Round Trip Times")

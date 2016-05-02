@@ -4,8 +4,6 @@ import logging
 
 from  datastruct.scapegoat_tree import SGTree, enc_insert
 
-
-
 def decrypt(cipher):
     ''' Dummy decryption method
     '''
@@ -165,6 +163,8 @@ class CacheModel(object):
         self.logger.setLevel(logging.INFO)
         self.outfile = logfile
 
+        self.evict_count = 0
+
     def __str__(self):
         sizes = ("Max Size: " + str(self.max_size) + "\nCurrent Size: " +
                  str(self.current_size) + "\n"
@@ -235,10 +235,14 @@ class CacheModel(object):
         Remove the num_eviction least recently used entries in the 
         cache and send a message to the next space in the hierarchy
         '''
+        self.evict_count += 1
+        print("evicting")
         sorted_entries = sorted(self.cache, key=lambda x: x.lru)
         lru_entries = sorted_entries[:num_evictions]
         self.cache = [x for x in self.cache if not x in lru_entries]
         for entry in lru_entries:
+            self.logger.info("Evicting " + str(entry.cipher_text) )
+
             key = enc2string(entry.encoding)
             del self.cache_lookup[key] # Evict from lookup table
             if not entry.synced:
@@ -299,6 +303,7 @@ class CacheModel(object):
         '''
         flush_encs = [x.encoding for x in flush_entries]
         for entry in flush_entries:
+            self.logger.info("Flushing "+ str(entry.cipher_text))
             key = enc2string(entry.encoding)
             if key in self.cache_lookup:
                 del self.cache_lookup[key]
@@ -323,7 +328,7 @@ class CacheModel(object):
         self.logger.info("Adding rebalance root to outgoing messages.")
         if len(entries_to_send) == 0:
             outgoing.append(OutgoingMessage(messageType[1], 
-                                          root_entry.encoding, 
+                                          start_encoding, 
                                           start_flag=True,
                                           end_flag=True))
             return outgoing
@@ -347,7 +352,9 @@ class CacheModel(object):
         Return the largest height the scapegoat tree represented by the
         cache considers balanced
         '''
-        return math.floor(math.log(self.current_size, (1/self.sg_alpha)))
+        #return math.floor(math.log(self.current_size, (1/self.sg_alpha)))
+        return math.floor(math.log(self.current_size, 2))
+
 
     def _is_scapegoat_node(self,entry):
         '''Internal Method is_scapegoate_node 
@@ -358,12 +365,12 @@ class CacheModel(object):
         left_child_entry = self._left_child(entry.encoding)
         right_child_entry = self._right_child(entry.encoding)
         if left_child_entry is not None:
-            if (left_child_entry.subtree_size > 
-                entry.subtree_size * self.sg_alpha):
+            if left_child_entry.subtree_size > int((entry.subtree_size * 3)/4):
+                #entry.subtree_size * self.sg_alpha):
                 return True
         if right_child_entry is not None:
-            if (right_child_entry.subtree_size > 
-                entry.subtree_size * self.sg_alpha):
+            if right_child_entry.subtree_size > int((entry.subtree_size * 3)/4):
+                #entry.subtree_size * self.sg_alpha):
                 return True
         return False
 
@@ -494,6 +501,7 @@ class CacheModel(object):
         the insert, or no change in the case a duplicate is found
         '''
         self.logger.info("Inserting: %d", new_plaintext)
+
         if self.cache == []:
             if self.current_size == 0:
                 self.logger.info("Inserting original root")
@@ -518,7 +526,12 @@ class CacheModel(object):
                              current_entry.cipher_text)
             new_entry_encoding = self._enc_copy(start_enc)
         else:
-            current_entry = self.cache_lookup[""]
+            try:
+                current_entry = self.cache_lookup[""]
+            except KeyError:
+                self._handle_miss([], new_plaintext)
+                return
+            
 
         # Traverse the tree encoded in the cache table 
         while not current_entry.is_leaf:

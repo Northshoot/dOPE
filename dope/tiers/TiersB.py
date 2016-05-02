@@ -42,6 +42,10 @@ class dSensor(Tier):
         self.insert_round_trips = []
         self.cache = cache.CacheModel(cache_len, out_file, int(k/2))
         self.done = False
+        # For recording more precise dope statistics
+        self.total_ciphers_sent = 0
+        self.total_ciphers_received = 0
+        self.send_message_count = 0
 
     def generate_data(self):
         ''' Method generate_data
@@ -91,14 +95,19 @@ class dSensor(Tier):
         If a message is available from the cache to send then pass 
         along to the gateway
         '''
+        self.send_message_count += 1
         if len(self.cache.priority_messages) > 0:
-            message2send = self.cache.priority_messages.pop(0)
 
+            message2send = self.cache.priority_messages.pop(0)
+            if isinstance(message2send.entry, CacheEntry):
+                self.total_ciphers_sent += 1
+                print("Total ciphers sent: " + str(self.total_ciphers_sent))
             self.communicator.send((message2send.entry, 
                                     message2send.start_flag,
                                     message2send.end_flag),
                                    message2send.messageType)
         elif len(self.cache.sync_messages) > 0:
+            self.total_ciphers_sent += 1
             message2send = self.cache.sync_messages.pop(0)
             self.cache.acknowledge_sync(message2send.entry.node_encoding, 
                                         message2send.entry.node_index)
@@ -121,6 +130,7 @@ class dSensor(Tier):
             waiting, encoding, plaintxt = self.cache.waiting_on_insert
             assert(waiting)
             node = packet.data[0]
+            self.total_ciphers_received += len(node)
             for entry in node:
                 entry.lru = self.cache.lru_tag
             self.cache.lru_tag += 1
@@ -151,6 +161,8 @@ class dGateway(Tier):
         self.miss_count = 0
         self.evict_count = 0
         self.cloud_message_count = 0
+        self.num_traversals = []
+        self.ongoing_traversal = False
 
     def send2sensor(self):
         ''' Method send_message
@@ -196,7 +208,7 @@ class dGateway(Tier):
         --------------------------
         Receive messages from sensor
         '''
-
+        self.cache.logger.info("Beginning receive message \n\n")
         # Unable to reply consistently
         if len(self.rebalance2send) > 0:
             return
@@ -213,17 +225,24 @@ class dGateway(Tier):
 
 
             if packet.call_type == 'insert':
+                if not self.ongoing_traversal:
+                    # Record new traversal
+                    self.ongoing_traversal = True
+                    self.num_traversals.append([0,0])
                 self.miss_count += 1
-                self.cache.logger.info("Receiving insert request")
+                self.cache.logger.info("Receiving miss request for encoding: " + str(entry))
                 encoding = entry
                 msg = self.cache.insert_request(encoding)
                 if msg is None:
+                    self.num_traversals[-1][0] += 1
                     self.server_msg2send = OutgoingMessage('insert', 
                                                            send_entry)
                 else:
+                    self.num_traversals[-1][1] += 1
                     self.sensor_msg2send = msg
 
             elif packet.call_type == 'rebalance':
+                self.ongoing_traversal = False
                 self.rebal_count += 1
                 self.cache.logger.info('Receiving rebalance request')
                 if start_flag:
@@ -253,6 +272,7 @@ class dGateway(Tier):
                                                       end_flag=end_flag)
                 
             elif packet.call_type == 'eviction':
+                self.ongoing_traversal = False
                 self.evict_count += 1
                 self.cache.logger('Receiving evicted entry')
                 entry = packet.data[0]
@@ -266,10 +286,13 @@ class dGateway(Tier):
                     self.server_msg2send = OutgoingMessage(packet.call_type,
                                                            send_entry)
             elif packet.call_type == 'sync':
+                self.ongoing_traversal = False
                 self.sync_count += 1
                 self.cache.logger.info("Receiving sync message with cipher: " + 
                                         str(packet.data[0].cipher_text))
                 entry = packet.data[0]
+                self.cache.logger.info("Pre merge")
+                self.cache.logger.info(str(self.cache))
                 self.cache.merge_new([entry])
                 if len(self.cache.priority_messages) > 0:
                     self.server_msg2send = self.cache.priority_messages.pop(0)
@@ -286,6 +309,8 @@ class dGateway(Tier):
         '''
         Receive message from server
         '''
+        self.cache.logger.info("Beginning receive server message \n\n")
+        self.cache.logger.info(str(self.cache))
         # Receive server message
         packet = self.communicator2.read()
         if packet is None:
@@ -300,6 +325,8 @@ class dGateway(Tier):
                 self.cache.logger.info("Merging entry:\n " + str(node))
                 self.cache.merge(node)
             self.sensor_msg2send = OutgoingMessage('insert', send_entry)
+        self.cache.logger.info("Ending receive server message \n\n")
+        self.cache.logger.info(str(self.cache))
 
 
 class dServer(Tier):
@@ -339,8 +366,10 @@ class dServer(Tier):
         entries2send = [CacheEntry(key, encoding, i, 0) for i,key in 
                         enumerate(node.keys)]
         for entry in entries2send:
+            self.cache.logger.info(str(entry))
             entry.is_leaf = node.isLeaf
             entry.synced = True
+
         self.message2send = OutgoingMessage(messageType[0], entries2send)
 
     def handle_rebalance(self, entry, start_flag, end_flag):
@@ -396,7 +425,7 @@ class dServer(Tier):
             end_flag = packet.data[2]
 
         if packet.call_type == "insert":
-            self.cache.logger.info("Receiving insert request")
+            self.cache.logger.info("Receiving miss request")
             encoding = entry
             self.handle_insert(encoding)
             self.cache.logger.info(str(self.tree))
