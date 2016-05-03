@@ -52,7 +52,3 @@ def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, k,
     print( "For " + str( sensor.num_data_sent - sensor.data_queue.qsize()) + " total inserts")
     print("And " + str(sensor.num_gen - sensor.num_data_sent) + " dropped packets")
  
-    with open("Round_trips_mope.csv", "w") as f:
-        for i in range(0,len(sensor.insert_round_trips)):
-            f.write(str(sensor.insert_round_trips[i])+"\n")
-

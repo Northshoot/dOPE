@@ -68,7 +68,7 @@ if __name__ == "__main__":
     # Set default values of arguments not taken from the command line
     numTics = args.numTics
     if numTics is None:
-        numTics = 100000
+        numTics = 1000000
 
     dataTics = args.dataTics
     if dataTics is None:

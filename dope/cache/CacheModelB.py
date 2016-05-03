@@ -110,9 +110,9 @@ class CacheModel(object):
         Add a new entry to the table, evicting a node if necessary
         '''
         if self.max_size is not None and len(self.cache) == self.max_size:
-            print_ctrl("eviction triggered")
+            self.logger.debug("eviction triggered")
             self._evict_node()
-        self.logger.info("Adding %d to the cache", entry.cipher_text)
+        self.logger.debug("Adding %d to the cache", entry.cipher_text)
         self.cache.append(entry)
         self.current_size += 1
 
@@ -123,7 +123,7 @@ class CacheModel(object):
         '''
         self.evict_count += 1
         zero_nodes = [entry for entry in self.cache if entry.node_index == 0]
-        print_ctrl("Zero nodes " + str(zero_nodes))
+        self.logger.debug("Zero nodes " + str(zero_nodes))
         sorted_zero_nodes = sorted(zero_nodes, key=lambda x: x.lru)
         if sorted_zero_nodes[0].node_encoding == []:
             sorted_zero_nodes.pop(0)
@@ -131,10 +131,10 @@ class CacheModel(object):
                 sorted_zero_nodes[0].node_encoding]
         self.cache = [x for x in self.cache if not x in node]
         for entry in node:
-            self.logger.info("Evicting " + str(entry.cipher_text))
+            self.logger.debug("Evicting " + str(entry.cipher_text))
 
             if not entry.synced:
-                self.logger.info("Adding eviction to outgoing messages")
+                self.logger.debug("Adding eviction to outgoing messages")
                 self.priority_messages.append(OutgoingMessage(messageType[3],
                                               copy.deepcopy(entry)))
 
@@ -149,7 +149,7 @@ class CacheModel(object):
             entry = None
         else:
             if len(entry) != 1:
-                self.logger.info(str(self))
+                self.logger.debug(str(self))
                 assert(len(entry) == 1)
             entry = entry[0]
         return entry
@@ -181,7 +181,7 @@ class CacheModel(object):
         # Clear cache
         self.cache = []
         self.sync_messages = []
-        self.logger.info("Adding rebalance root to outgoing messages.")
+        self.logger.debug("Adding rebalance root to outgoing messages.")
         if len(entries_to_send) == 0:
             outgoing.append(OutgoingMessage(messageType[1], 
                                             new_entry_encoding,
@@ -193,12 +193,12 @@ class CacheModel(object):
                                         start_flag=True,
                                         end_flag=False))
         for entry in entries_to_send[:len(entries_to_send)-1]:
-            self.logger.info("Adding rebalance request to outgoing messages  " +
+            self.logger.debug("Adding rebalance request to outgoing messages  " +
                              "Ciphertext = " + str(entry.cipher_text))
             outgoing.append(OutgoingMessage(messageType[1],
                                             copy.deepcopy(entry)))
         # Add last message
-        self.logger.info("Adding rebalance request to outgoing messages. " + 
+        self.logger.debug("Adding rebalance request to outgoing messages. " + 
                          "Ciphertext = " + str(entries_to_send[-1].cipher_text))
         outgoing.append(OutgoingMessage(messageType[1],
                                         copy.deepcopy(entries_to_send[-1]),
@@ -213,11 +213,11 @@ class CacheModel(object):
         the current insert
         '''
         self.plaintexts_who_miss.append(plaintext)
-        self.logger.info("Handling cache miss")
+        self.logger.debug("Handling cache miss")
         if len(self.cache) == self.max_size:
             self._evict_node()
         self.waiting_on_insert = (True, next_encoding, plaintext)
-        self.logger.info("Adding cache miss request to outgoing messages")
+        self.logger.debug("Adding cache miss request to outgoing messages")
         self.priority_messages.append(OutgoingMessage(messageType[0], 
                                       next_encoding[:]))
 
@@ -230,10 +230,10 @@ class CacheModel(object):
         '''
         node_idx = 0
         entry = current_node_start
-        self.logger.info(entry.cipher_text)
-        self.logger.info("plaintext: " + str(new_plaintext))
+        self.logger.debug(entry.cipher_text)
+        self.logger.debug("plaintext: " + str(new_plaintext))
         while entry is not None and entry.cipher_text < new_plaintext:
-            self.logger.info(entry.cipher_text)
+            self.logger.debug(entry.cipher_text)
             entry.lru = self.lru_tag
             node_idx += 1
             entry = self._entry_with_encoding(current_node_start.node_encoding,
@@ -254,14 +254,14 @@ class CacheModel(object):
         '''
         entries = [entry for entry in self.cache if entry.node_encoding == encoding]
         entries = sorted(entries, key = lambda x: x.node_index)
-        self.logger.info(entries)
+        self.logger.debug(entries)
         found = False
         index = 0
         for i, entry in enumerate(entries):
             entry.lru = self.lru_tag
-            self.logger.info(str(entry.cipher_text))
+            self.logger.debug(str(entry.cipher_text))
             if not found and entry.cipher_text == new_plaintext:
-                self.logger.info("Found duplicate")
+                self.logger.debug("Found duplicate")
                 return None
             if not found and entry.cipher_text > new_plaintext:
                 index = i
@@ -271,7 +271,7 @@ class CacheModel(object):
         # Create new entry
         if not found:
             index = len(entries)
-            self.logger.info(index)
+            self.logger.debug(index)
         new_entry = CacheEntry(new_plaintext, encoding, index, self.lru_tag)
         self._cachetable_add(new_entry)
         return new_entry
@@ -286,12 +286,12 @@ class CacheModel(object):
         the region of the encoding tree necessary to continue the
         the insert, or no change in the case a duplicate is found
         '''
-        self.logger.info("Inserting: %f", new_plaintext)
+        self.logger.debug("Inserting: %f", new_plaintext)
         assert(len(self.cache) <= self.max_size)
 
         if self.cache == []:
             if self.current_size == 0:
-                self.logger.info("Inserting original root")
+                self.logger.debug("Inserting original root")
                 self.cache.append(CacheEntry(new_plaintext, [], 0, self.lru_tag))
                 self.lru_tag += 1
                 self.current_size += 1
@@ -301,7 +301,7 @@ class CacheModel(object):
 
 
             else: # Recover from rebalance at root
-                self.logger.info("Recovering from rebalance at root")
+                self.logger.debug("Recovering from rebalance at root")
                 self._handle_miss([], new_plaintext)
                 return
 
@@ -318,10 +318,10 @@ class CacheModel(object):
             next_child = self.traverse_node(current_node_start, new_plaintext)
             if next_child is None:
                 # Repeat!
-                self.logger.info("Found duplicate")
+                self.logger.debug("Found duplicate")
                 return
             new_entry_encoding.append(next_child)
-            self.logger.info("New entry encoding: " + str(new_entry_encoding))
+            self.logger.debug("New entry encoding: " + str(new_entry_encoding))
             current_node_start = self._entry_with_encoding(new_entry_encoding, 0)
             if current_node_start is None:
                 self._handle_miss(new_entry_encoding, new_plaintext)
@@ -329,7 +329,7 @@ class CacheModel(object):
             self.lru_tag += 1
 
         # Traversed up to a leaf node
-        self.logger.info("Traversed up to insert postion of plaintext %d", new_plaintext)
+        self.logger.debug("Traversed up to insert postion of plaintext %d", new_plaintext)
         # Add new entry to the node
         new_entry = self._update_node(new_entry_encoding, new_plaintext)
         self.lru_tag += 1
@@ -344,7 +344,7 @@ class CacheModel(object):
         self.rebalance(new_entry_encoding)
 
     def merge(self, incoming_entries):
-        self.logger.info("Beginning merge of %d elements",len(incoming_entries))
+        self.logger.debug("Beginning merge of %d elements",len(incoming_entries))
         new_entries = [entry for entry in incoming_entries if entry 
                        not in self.cache]
         for entry in new_entries:
@@ -360,21 +360,21 @@ class CacheModel(object):
         --------------------
         Filter incoming entries, evict old entries as necessary 
         '''
-        self.logger.info("merging new\n\n\n\n")
+        self.logger.debug("merging new\n\n\n\n")
         self.current_size += len(incoming_entries)
         for new in incoming_entries:
             # Find the node to which this entry belongs
             node = [entry for entry in self.cache if entry.node_encoding == 
                     new.node_encoding ]
-            self.logger.info(node)
+            self.logger.debug(node)
             for entry in node:
-                self.logger.info(str(entry))
+                self.logger.debug(str(entry))
             # Update the other entries at this node
             for entry in node:
-                self.logger.info(str(entry))
+                self.logger.debug(str(entry))
                 if entry.node_index >= new.node_index:
                     entry.node_index += 1
-                self.logger.info(str(entry))
+                self.logger.debug(str(entry))
             self.cache.append(new)
 
         # Handle any evictions
@@ -388,7 +388,7 @@ class CacheModel(object):
         Flip the sync flag of the matching entry 
         '''
         entry = self._entry_with_encoding(encoding, node_idx)
-        self.logger.info("Acknowledging that cipher %d is synced", 
+        self.logger.debug("Acknowledging that cipher %d is synced", 
                          entry.cipher_text)
         entry.synced = True
 
@@ -407,7 +407,7 @@ class CacheModel(object):
             assert(entry not in node)
             entry.synced = True
 
-        self.logger.info("Sending insert reply")
+        self.logger.debug("Sending insert reply")
         return OutgoingMessage(messageType[0], send)
 
 

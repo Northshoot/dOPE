@@ -77,7 +77,7 @@ class dSensor(Tier):
         # If sensor can't process immediately, enqueue 
         try:
             self.insert_round_trips[-1] += 1
-            self.cache.logger.info("Insert blocking.  Number priority " +
+            self.cache.logger.debug("Insert blocking.  Number priority " +
                                    "messages outstanding: %d.\n "
                                    "Wating on insert: " 
                                    + str(self.cache.waiting_on_insert[0]),
@@ -131,7 +131,7 @@ class dSensor(Tier):
             assert(waiting)
             entry = packet.data[0]
             self.total_ciphers_received += 1
-            self.cache.logger.info("Merging entry:\n " + str(entry))
+            self.cache.logger.debug("Merging entry:\n " + str(entry))
             self.cache.merge([entry])
             self.cache.insert(plaintxt, encoding)
 
@@ -176,7 +176,7 @@ class dGateway(Tier):
     def send2server(self):
         if self.server_msg2send is not None:
             self.cloud_message_count += 1
-            self.cache.logger.info("Sending message to server")
+            self.cache.logger.debug("Sending message to server")
             self.communicator2.send((self.server_msg2send.entry,
                                      self.server_msg2send.start_flag,
                                      self.server_msg2send.end_flag),
@@ -189,12 +189,12 @@ class dGateway(Tier):
                                      rebalance_msg.start_flag,
                                      rebalance_msg.end_flag),
                                     rebalance_msg.messageType)
-            self.cache.logger.info("Sending rebalance request with cipher: " +
+            self.cache.logger.debug("Sending rebalance request with cipher: " +
                                    str(rebalance_msg.entry.cipher_text) + 
                                    " to server")
         elif len(self.cache.sync_messages) > 0:
             self.cloud_message_count += 1
-            self.cache.logger.info("Sending delayed sync to server")
+            self.cache.logger.debug("Sending delayed sync to server")
             sync_msg = self.cache.sync_messages.pop(0)
             self.cache.acknowledge_sync(sync_msg.entry.encoding)
             self.communicator2.send((sync_msg.entry, sync_msg.start_flag,
@@ -231,7 +231,7 @@ class dGateway(Tier):
                     self.num_traversals.append([0,0])
 
                 self.miss_count += 1
-                self.cache.logger.info("Receiving insert request")
+                self.cache.logger.debug("Receiving insert request")
                 encoding = entry
                 msg = self.cache.insert_request(encoding)
                 if msg is None:
@@ -245,9 +245,9 @@ class dGateway(Tier):
             elif packet.call_type == 'rebalance':
                 self.ongoing_traversal = False
                 self.rebal_count += 1
-                self.cache.logger.info('Receiving rebalance request')
+                self.cache.logger.debug('Receiving rebalance request')
                 if start_flag:
-                    self.cache.logger.info("First in a possible series of " +
+                    self.cache.logger.debug("First in a possible series of " +
                                            "rebalance requests")
                     assert(self.rebalance_received == [] and 
                            self.rebalance_root_enc is None)
@@ -257,7 +257,7 @@ class dGateway(Tier):
                     self.rebalance_received.append(entry)
                 if end_flag:
 
-                    self.cache.logger.info("Last rebalance request of the " +
+                    self.cache.logger.debug("Last rebalance request of the " +
                                            "series")
                     self.cache.flush(self.rebalance_received)
                     self.rebalance2send = self.cache.rebalance_start(
@@ -266,7 +266,7 @@ class dGateway(Tier):
                     self.rebalance_received = [] 
                     self.rebalance_root_enc = None
                     if len(self.rebalance2send) > 0:
-                        self.cache.logger.info("Sending rebalances from "+ 
+                        self.cache.logger.debug("Sending rebalances from "+ 
                                                "this hierarchy")
                         end_flag = False
                 self.server_msg2send = OutgoingMessage(packet.call_type, send_entry,
@@ -290,7 +290,7 @@ class dGateway(Tier):
             elif packet.call_type == 'sync':
                 self.ongoing_traversal = False
                 self.sync_count += 1
-                self.cache.logger.info("Receiving sync message with cipher: " + 
+                self.cache.logger.debug("Receiving sync message with cipher: " + 
                                         str(packet.data[0].cipher_text))
                 entry = packet.data[0]
                 assert(self.cache._entry_with_encoding(entry.encoding) is None)
@@ -326,7 +326,7 @@ class dGateway(Tier):
             send_entry = copy.deepcopy(entry)
             if (len(self.cache.cache) < self.cache.max_size):
                 # If gateway has room, cache value
-                self.cache.logger.info("Merging entry:\n " + str(entry))
+                self.cache.logger.debug("Merging entry:\n " + str(entry))
                 self.cache.merge([entry])
             self.sensor_msg2send = OutgoingMessage('insert', send_entry)
 
@@ -376,40 +376,40 @@ class dServer(Tier):
             end_flag = packet.data[2]
 
         if packet.call_type == "insert":
-            self.cache.logger.info("Receiving insert request")
+            self.cache.logger.debug("Receiving insert request")
             encoding = entry
             self.message2send = self.cache.insert_request(encoding) 
             if self.message2send is None:
                 raise(ValueError("Server should have record of every cipher"))
         elif packet.call_type == "rebalance":
-            self.cache.logger.info("Receiving rebalance request")
+            self.cache.logger.debug("Receiving rebalance request")
             if start_flag:
-                self.cache.logger.info("First in a possible series of " +
+                self.cache.logger.debug("First in a possible series of " +
                                        "rebalance requests")
                 if self.rebalance_entries != [] or self.root_enc is not None:
-                    self.cache.logger.info("Rebalance Entries: " + 
+                    self.cache.logger.debug("Rebalance Entries: " + 
                                            str(self.rebalance_entries))
                 assert(self.rebalance_entries == [] and self.root_enc is None)
                 # Initial rebalance entry is the root encoding
                 self.root_enc = entry
             if not start_flag:
-                self.cache.logger.info("Rebalance cipher: " + 
+                self.cache.logger.debug("Rebalance cipher: " + 
                                        str(entry.cipher_text))
                 entry.synced = True
                 self.rebalance_entries.append(entry)
             if end_flag:
-                self.cache.logger.info("Last rebalance request with cipher " +
+                self.cache.logger.debug("Last rebalance request with cipher " +
                                        str(entry.cipher_text) )
                 self.cache.rebalance_request(self.rebalance_entries, 
                                              self.root_enc)
                 self.root_enc = None
                 self.rebalance_entries = []
         elif packet.call_type == "evict":
-            self.cache.logger.info("Receiving evicted entry")
+            self.cache.logger.debug("Receiving evicted entry")
             entry.synced = True
             self.cache.merge_new([entry])
         elif packet.call_type == "sync":
-            self.cache.logger.info("Receiving sync message with cipher: " + 
+            self.cache.logger.debug("Receiving sync message with cipher: " + 
                                    str(packet.data[0].cipher_text))
             entry.synced = True
             assert(self.cache._entry_with_encoding(entry.encoding) is None)

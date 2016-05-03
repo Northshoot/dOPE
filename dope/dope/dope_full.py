@@ -81,16 +81,12 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
     tic = 0
     #event loop
     while tic < maxTics:
-        with open(sensor.cache.outfile, "a") as sensorF:
-            print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
-                  "---------------\n", file=sensorF)
-        with open(gateway.cache.outfile, "a") as gateF:
-            print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
-                  "---------------\n", file=gateF)
-        with open(server.cache.outfile, "a") as servF:
-            print("---------------\n" + "BEGINNING TIC\n" + str(tic) +
-                  "---------------\n", file=servF)
-
+        sensor.cache.logger.debug("---------------\n" + "BEGINNING TIC\n" +
+                                  str(tic) + "---------------\n")
+        gateway.cache.logger.debug("---------------\n" + "BEGINNING TIC\n" +
+                                  str(tic) + "---------------\n")
+        server.cache.logger.debug("---------------\n" + "BEGINNING TIC\n" +
+                                  str(tic) + "---------------\n")
         #Generate data and place into queue
         if tic % dataTics == 0:
             sensor.generate_data()

@@ -221,7 +221,7 @@ class CacheModel(object):
         Go through all entries affected by adding entry with the
         provided encoding and update subtree size fields
         '''
-        self.logger.info("Updating parent sizes")
+        self.logger.debug("Updating parent sizes")
         level = 0
         while (level < len(encoding)):
             next_entry = self._entry_with_encoding(encoding[:level])
@@ -241,12 +241,12 @@ class CacheModel(object):
         lru_entries = sorted_entries[:num_evictions]
         self.cache = [x for x in self.cache if not x in lru_entries]
         for entry in lru_entries:
-            self.logger.info("Evicting " + str(entry.cipher_text) )
+            self.logger.debug("Evicting " + str(entry.cipher_text) )
 
             key = enc2string(entry.encoding)
             del self.cache_lookup[key] # Evict from lookup table
             if not entry.synced:
-                self.logger.info("Adding eviction to outgoing messages")
+                self.logger.debug("Adding eviction to outgoing messages")
                 self.priority_messages.append(OutgoingMessage(messageType[3], 
                                               copy.deepcopy(entry)))
 
@@ -256,11 +256,11 @@ class CacheModel(object):
         Bring in the next entry along the encoding path to complete the
         current insert.
         '''
-        self.logger.info("Handling cache miss")
+        self.logger.debug("Handling cache miss")
         if len(self.cache) == self.max_size:
             self._evict(1)
         self.waiting_on_insert = (True, next_encoding[:-1], plaintext)
-        self.logger.info("Adding insert request to outgoing messages")
+        self.logger.debug("Adding insert request to outgoing messages")
         self.priority_messages.append(OutgoingMessage(messageType[0],
                                       self._enc_copy(next_encoding)))
 
@@ -271,7 +271,7 @@ class CacheModel(object):
         encoding
         '''
         assert(self._entry_with_encoding(new_entry_encoding) is None)
-        self.logger.info("Adding %d to the cache", new_ciphertext)
+        self.logger.debug("Adding %d to the cache", new_ciphertext)
         self.cache.append(CacheEntry(new_ciphertext, new_entry_encoding,
                                      self.lru_tag))
         key = enc2string(new_entry_encoding)
@@ -291,7 +291,7 @@ class CacheModel(object):
             entry = msg.entry
             if entry.encoding[:len(root_encoding)] == root_encoding:
                 bad_entries.append(entry)
-                self.logger.info("Clearing sync with cipher %d from " +
+                self.logger.debug("Clearing sync with cipher %d from " +
                                  "outgoing syncs", entry.cipher_text)
         self.sync_messages = [msg for msg in self.sync_messages if
                               not msg.entry in bad_entries]
@@ -303,7 +303,7 @@ class CacheModel(object):
         '''
         flush_encs = [x.encoding for x in flush_entries]
         for entry in flush_entries:
-            self.logger.info("Flushing "+ str(entry.cipher_text))
+            self.logger.debug("Flushing "+ str(entry.cipher_text))
             key = enc2string(entry.encoding)
             if key in self.cache_lookup:
                 del self.cache_lookup[key]
@@ -325,7 +325,7 @@ class CacheModel(object):
 
         entries_to_send = [x for x in subtree_to_evict if not x.synced]
         outgoing = []
-        self.logger.info("Adding rebalance root to outgoing messages.")
+        self.logger.debug("Adding rebalance root to outgoing messages.")
         if len(entries_to_send) == 0:
             outgoing.append(OutgoingMessage(messageType[1], 
                                           start_encoding, 
@@ -335,14 +335,14 @@ class CacheModel(object):
         outgoing.append(OutgoingMessage(messageType[1], root_entry.encoding,
                                         start_flag=True))
         for entry in entries_to_send[:len(entries_to_send)-1]:
-            self.logger.info("Adding rebalance request to outgoing messages  " +
+            self.logger.debug("Adding rebalance request to outgoing messages  " +
                              "Ciphertext = " + str(entry.cipher_text))
             outgoing.append(OutgoingMessage(messageType[1], 
                                             copy.deepcopy(entry)))
         outgoing.append(OutgoingMessage(messageType[1], 
                                       copy.deepcopy(entries_to_send[-1]),
                                       end_flag=True))
-        self.logger.info("Adding rebalance request to outgoing messages. " + 
+        self.logger.debug("Adding rebalance request to outgoing messages. " + 
                          "Ciphertext = " + str(entries_to_send[-1].cipher_text))
         return outgoing
 
@@ -398,7 +398,7 @@ class CacheModel(object):
         cipher_set = set()
         for entry in self.cache:
             if entry.cipher_text in cipher_set:
-                self.logger.info(str(entry) + "has duplicate cipher")
+                self.logger.debug(str(entry) + "has duplicate cipher")
                 return False
             cipher_set.add(entry.cipher_text)
         return True
@@ -414,13 +414,13 @@ class CacheModel(object):
         if ciphers == s_ciphers:
             return True
         else:
-            self.logger.info("Ordering broken, cipher order:")
-            self.logger.info(str(ciphers))
-            self.logger.info("sorted cipher order:")
-            self.logger.info(str(sorted(ciphers)))
+            self.logger.error("Ordering broken, cipher order:")
+            self.logger.error(str(ciphers))
+            self.logger.error("sorted cipher order:")
+            self.logger.error(str(sorted(ciphers)))
             different_indices = [ciphers[i] for i in range(len(ciphers)) if 
                                  ciphers[i] != s_ciphers[i]]
-            self.logger.info(str(different_indices))
+            self.logger.error(str(different_indices))
             return False
 
     def acknowledge_sync(self, encoding):
@@ -430,7 +430,7 @@ class CacheModel(object):
         '''
         key = enc2string(encoding)
         entry = self.cache_lookup[key]
-        self.logger.info("Acknowledging that cipher %d is synced", 
+        self.logger.debug("Acknowledging that cipher %d is synced", 
                          entry.cipher_text)
         entry.synced = True
 
@@ -439,7 +439,7 @@ class CacheModel(object):
         ----------------
         Merge new entries into the existing cache.  
         '''
-        self.logger.info("Beginning merge of %d elements",len(incoming_entries))
+        self.logger.debug("Beginning merge of %d elements",len(incoming_entries))
         new_entries = list(filter(self.cache_no_contain, incoming_entries))
         self.cache.extend(new_entries)
         for entry in new_entries:
@@ -457,17 +457,17 @@ class CacheModel(object):
         next space in the hierarchy.
         '''
         if len(encoding) > self._balanced_h():
-            self.logger.info("Tree is unbalanced")
+            self.logger.debug("Tree is unbalanced")
             # Find scapegoat node
             level = len(encoding)
             while (level >= 0):
                 entry = self._entry_with_encoding(encoding[:level])
                 if self._is_scapegoat_node(entry):
-                    self.logger.info("Found scapegoat node with cipher: %d",
+                    self.logger.debug("Found scapegoat node with cipher: %d",
                                   entry.cipher_text)
-                    self.logger.info("Clearing outdated syncs")
+                    self.logger.debug("Clearing outdated syncs")
                     self._clear_syncs(entry)
-                    self.logger.info("Purging cache and sending rebalance " +
+                    self.logger.debug("Purging cache and sending rebalance " +
                                      "request messages")
                     rebalance_requests = self.rebalance_start(entry.encoding)
                     self.priority_messages += rebalance_requests
@@ -500,11 +500,11 @@ class CacheModel(object):
         the region of the encoding tree necessary to continue the
         the insert, or no change in the case a duplicate is found
         '''
-        self.logger.info("Inserting: %d", new_plaintext)
+        self.logger.debug("Inserting: %d", new_plaintext)
 
         if self.cache == []:
             if self.current_size == 0:
-                self.logger.info("Inserting original root")
+                self.logger.debug("Inserting original root")
                 self.cache.append(CacheEntry(new_plaintext, [], self.lru_tag))
                 self.cache_lookup[""] = self.cache[-1]
                 self.lru_tag += 1
@@ -514,7 +514,7 @@ class CacheModel(object):
                                                           new_entry))
                 return
             else: # Recover from rebalance at root 
-                self.logger.info("Recovering from rebalance at root")
+                self.logger.debug("Recovering from rebalance at root")
                 self._handle_miss([], new_plaintext)
                 return
 
@@ -522,7 +522,7 @@ class CacheModel(object):
         if start_enc is not None:
             key = enc2string(start_enc)
             current_entry = self.cache_lookup[key]
-            self.logger.info("Continuing insert starting at %d", 
+            self.logger.debug("Continuing insert starting at %d", 
                              current_entry.cipher_text)
             new_entry_encoding = self._enc_copy(start_enc)
         else:
@@ -539,7 +539,7 @@ class CacheModel(object):
             self.lru_tag += 1
             current_plaintext = decrypt(current_entry.cipher_text)
             if current_plaintext == new_plaintext:
-                self.logger.info("Found duplicate %d in the cache", 
+                self.logger.debug("Found duplicate %d in the cache", 
                                  current_plaintext)
                 self.waiting_on_insert = (False, None, None)
                 return # Found duplicate in cache
@@ -564,7 +564,7 @@ class CacheModel(object):
                     return
 
         # Traversed up to the parent entry of the new entry
-        self.logger.info("Traversed up to insert position of plaintext %d" +
+        self.logger.debug("Traversed up to insert position of plaintext %d" +
                          " Parent: %d", new_plaintext, 
                          current_entry.cipher_text)
                          
@@ -574,7 +574,7 @@ class CacheModel(object):
         self.lru_tag += 1
         current_plaintext = decrypt(current_entry.cipher_text)
         if current_plaintext == new_plaintext:
-            self.logger.info("Found duplicate %d in the cache", 
+            self.logger.debug("Found duplicate %d in the cache", 
                              current_plaintext)
             return # Found duplicate in cache
         elif new_plaintext < current_plaintext:
@@ -633,7 +633,7 @@ class CacheModel(object):
         Rebalance the subtree rooted at the index.  Precondition: the 
         subtree is in the cache
         '''
-        self.logger.info("Rebalancing node with cipher: %d", 
+        self.logger.debug("Rebalancing node with cipher: %d", 
                          entry.cipher_text)
         start_encoding = entry.encoding
         start_level = len(start_encoding)
@@ -660,10 +660,10 @@ class CacheModel(object):
         in_cache = len(subtree_in_cache) == root_entry.subtree_size
 
         if in_cache:
-            self.logger.info("Subtree rooted at cipher %d is in the cache", 
+            self.logger.debug("Subtree rooted at cipher %d is in the cache", 
                              root_entry.cipher_text)
         else:
-            self.logger.info("Only %d elements of subtree rooted at cipher " +
+            self.logger.debug("Only %d elements of subtree rooted at cipher " +
                              "%d in the cache.  Expected %d", 
                              len(subtree_in_cache), 
                              root_entry.cipher_text,
@@ -672,7 +672,7 @@ class CacheModel(object):
         cipher_sub = []
         for elt in subtree_in_cache:
             cipher_sub.append(elt.cipher_text)
-        self.logger.info("' Subtree in cache' : " + str(cipher_sub))
+        self.logger.debug("' Subtree in cache' : " + str(cipher_sub))
         ################################################
         return in_cache
 
@@ -687,7 +687,7 @@ class CacheModel(object):
         used on insert requests from above or rebalance merges from
         the same tier.
         '''
-        self.logger.info("Beginning merge of %d elements",len(incoming_entries))
+        self.logger.debug("Beginning merge of %d elements",len(incoming_entries))
         new_entries = list(filter(self.cache_no_contain, incoming_entries))
         self.cache.extend(new_entries)
         self.current_size += len(new_entries)
@@ -734,7 +734,7 @@ class CacheModel(object):
             return None
         entry2send = copy.deepcopy(entry)
         entry2send.synced = True
-        self.logger.info("Sending insert reply with cipher %d",
+        self.logger.deubg("Sending insert reply with cipher %d",
                          entry.cipher_text)
         return OutgoingMessage(messageType[0], entry2send)
 
