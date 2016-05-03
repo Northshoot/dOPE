@@ -1,6 +1,8 @@
 the summary printout must be clarified, it is very unclean what is it printed
  out
 
+--Woring on this now.  Hopefully they will be clearer in the morning.
+
 for example:
 
  For 26177 total inserts
@@ -8,23 +10,53 @@ And 72823 dropped packets
 
 what does that mean? how deoes the numbers evaluate performance?
 
+-- Again this is residual from earlier simulations where we recorded drops.
+If you send more data than dOPE's internal queue can buffer data from the
+generator will be dropped.  Its good this got reported because it seems like
+we are now more interested in buffering all data.  I have been doing this for
+the 1000 point data sets with a big enough queue, but now that we are inserting 
+so much more data we are either going to need a bigger queue or an architectural
+change that only pulls from the data generator when a new ciphertext is ready
+for insertion
+
 what is the purpose of Round_trips_mope? what does that mean?
+
+-- Residual csv file used for plotting the number of round trips each insert
+took.  Its not being used right now.  I'm taking it out and it can be 
+reinstated if we want something like it in the future.
 
 why dope simulation so much more slower?
 
+--Great question, I will need to look into this in some depth to get a 
+satisfactory answer.  This came up before while evaluating sequential
+data sets on 100,000 values in the past.  In that case I ran cProfile to figure out 
+how to speed things up which led to the discovery of some sloppy O(n^2) methods.
+Side note this is the reason that CacheModelFull contains both a representation
+of the cache for manipulation and one for lookup.  In the past most of the
+bottlenecks came from server operations because the data size is huge and not
+fixed here.  Of course mOPE performs fine with the BTree so it seems to be
+a cache operation.  
 
 
 please remove all print out statements, working with large data sets is very
 disturbing then
+-- Will do. It would be great if you could explain further what you mean "disturbing then"
 https://docs.python.org/3.5/howto/logging-cookbook.html#logging-cookbook
 http://victorlin.me/posts/2012/08/26/good-logging-practice-in-python
 
 all the logging should be controller from the runner module, where we can set
  ouput to console or just file
 
+--It might just be the wording but I'm confused about this.  Logging from within
+the tiers and cache modules frequently saved my life during debugging.  I will
+certainly separate out these logging statements into the debug level if that's what 
+you mean.
+
  also separate the debug to info, error, debug, warning etc to have a clean data
  for example we can use critical level to ouly collet data for plotting
  rather than see all the print outs
+
+ --Great idea will do.
 
 
 
