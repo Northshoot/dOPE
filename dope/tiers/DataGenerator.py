@@ -25,6 +25,10 @@ class DataGenerator(object):
             self.timeseries = parseNOAAFile(self.data_file, 9)
             self.noaa_len = len(self.timeseries)
 
+    @property
+    def is_last(self):
+        return self.current == self.noaa_len -1
+
     def get_next(self):
         if self.distribution == 'random':
             self.current += 1
@@ -35,10 +39,12 @@ class DataGenerator(object):
         elif self.distribution == 'uniform':
             return random.uniform(self.bounds[0], self.bounds[1])
         elif self.distribution == 'NOAA_temp':
-            if self.current == self.noaa_len:
+            if self.is_last:
+                print("\t LAST")
                 return None
             else:
                 data = self.timeseries[self.current]
+                print("Printing Current num: %d" %self.current)
                 self.current += 1
             return data
         else:

@@ -16,7 +16,7 @@ def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, k,
     gateway.link(sensor,server)
     tic = 0
     #event loop
-    while tic < maxTics:
+    while True:
         tic += 1
         # Generate data and place in lower priority queue.
         if tic % dataTics == 0:

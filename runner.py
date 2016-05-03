@@ -8,6 +8,7 @@ formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
 console.setFormatter(formatter)
 logging.getLogger('').addHandler(console)
 
+
 def run(numTics, dataTics, networkTics, data_queue_len, distribution,
         cacheS_len, cacheG_len,data_file):
     # import here because we need to set up syspath prior importing
@@ -15,8 +16,8 @@ def run(numTics, dataTics, networkTics, data_queue_len, distribution,
     #
     # # Run basline simulation
     k = 10 # Talos value for k-ary tree branching
-    mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, k,
-                  distribution, data_file)
+    # mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, k,
+    #               distribution, data_file)
 
     from dope import dOPE
 
@@ -88,7 +89,8 @@ if __name__ == "__main__":
     elif distribution == 'NOAA_temp':
         data_file = args.file
         if data_file is None:
-            data_file = 'data_sets/CRNS0101-05-2015-CA_Santa_Barbara_11_W.txt'
+           # data_file = 'data_sets/CRNS0101-05-2015-CA_Santa_Barbara_11_W.txt'
+            data_file = "CRNS0101-05-2015-MO_Chillicothe_22_ENE"
             #data_file = 'data_sets/CRNS0101-05-2008-KY_Bowling_Green_21_NNE
             # .txt'
 

@@ -1,3 +1,19 @@
+the summary printout must be clarified, it is very unclean what is it printed
+ out
+
+for example:
+
+ For 26177 total inserts
+And 72823 dropped packets
+
+what does that mean? how deoes the numbers evaluate performance?
+
+what is the purpose of Round_trips_mope? what does that mean?
+
+why dope simulation so much more slower?
+
+
+
 please remove all print out statements, working with large data sets is very
 disturbing then
 https://docs.python.org/3.5/howto/logging-cookbook.html#logging-cookbook
