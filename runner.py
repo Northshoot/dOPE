@@ -80,7 +80,7 @@ if __name__ == "__main__":
 
     data_queue_len = args.data_queue_len
     if data_queue_len is None:
-        data_queue_len = 1000
+        data_queue_len = 40000
 
     data_file = None
     distribution = args.distribution

@@ -36,6 +36,7 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
                 avg_traversals[1] /= n_miss_inserts
 
                 ret = "----------------Finished!---------------\n"
+                ret += "***Total insersts = " + str(sensor.cache.insert_count) +"***\n"
                 ret += "----------------Messages----------------\n"
                 ret += "|Embedded to Gateway | Gateway to Cloud|\n"
                 ret += "|--------------------|-----------------|\n"
@@ -94,8 +95,5 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
         tic += 1
         print_ctrl(tic)
    
-
-    print("The number of data recorded by the system")
-    print(sensor.num_data_sent - sensor.data_queue.qsize())
 
 

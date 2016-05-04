@@ -56,7 +56,7 @@ class dSensor(Tier):
         if self.sim_lim is None:
             return False
         else:
-            return self.send_message_count == self.sim_lim
+            return self.cache.insert_count == self.sim_lim
 
     def generate_data(self):
         ''' Method generate_data
@@ -67,7 +67,7 @@ class dSensor(Tier):
         # Enqueue data for low priority sending 
         self.num_gen += 1
         plaintxt = self.data_gen.get_next()
-        if plaintxt is None or self.sim_lim_reached:
+        if plaintxt is None and self.data_queue.empty():
             self.done = True
             return
         if (len(self.cache.priority_messages) < 1 and not 
@@ -76,7 +76,8 @@ class dSensor(Tier):
             # If queue is not empty then pop one off
             if not self.data_queue.empty():
                 popped_ptext = self.data_queue.get_nowait()
-                self.data_queue.put_nowait(plaintxt)
+                if plaintxt is not None:
+                    self.data_queue.put_nowait(plaintxt)
                 self.cache.insert(popped_ptext)
             else:
                 self.cache.insert(plaintxt)
@@ -91,10 +92,12 @@ class dSensor(Tier):
                                    "Wating on insert: " 
                                    + str(self.cache.waiting_on_insert[0]),
                                    len(self.cache.priority_messages))
-            self.data_queue.put_nowait(plaintxt)
-            self.num_data_sent += 1
+            if plaintxt is not None:
+                self.data_queue.put_nowait(plaintxt)
+                self.num_data_sent += 1
         except queue.Full:
             # If there is not room in the queue drop data
+            print("dropping")
             return
 
     def send_message(self):

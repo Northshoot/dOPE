@@ -40,7 +40,6 @@ class DataGenerator(object):
             return random.uniform(self.bounds[0], self.bounds[1])
         elif self.distribution == 'NOAA_temp':
             if self.is_last:
-                print("\t LAST")
                 return None
             else:
                 data = self.timeseries[self.current]

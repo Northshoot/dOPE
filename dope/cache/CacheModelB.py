@@ -23,13 +23,14 @@ class OutgoingMessage(object):
         self.messageType = messageType
         self.start_flag = start_flag 
         self.end_flag = end_flag
+        self.timestamp
 
     def __str__(self):
         return ("Message Type" + str(self.messageType) + "\n" 
                 + str(self.entryList)
                )
 
-messageType = ["insert", "rebalance", "sync", "evict"]
+messageType = ["insert", "rebalance", "sync", "evict", "sync_repeat"]
 
 
 
@@ -89,6 +90,7 @@ class CacheModel(object):
 
         self.evict_count = 0
         self.plaintexts_who_miss = []
+        self.insert_count = 0
 
     def __str__(self):
         sizes = ("Max Size: " + str(self.max_size) + "\nCurrent Size: " +
@@ -290,6 +292,7 @@ class CacheModel(object):
         assert(len(self.cache) <= self.max_size)
 
         if self.cache == []:
+            self.insert_count += 1
             if self.current_size == 0:
                 self.logger.debug("Inserting original root")
                 self.cache.append(CacheEntry(new_plaintext, [], 0, self.lru_tag))
@@ -310,6 +313,7 @@ class CacheModel(object):
             current_node_start = self._entry_with_encoding(start_enc, 0)
             new_entry_encoding = start_enc[:]
         else:
+            self.insert_count += 1
             current_node_start = self._entry_with_encoding([], 0)
 
         # Traverse the tree encoded in the cache table
