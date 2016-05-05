@@ -34,7 +34,7 @@ class Sensor(Tier):
         self.__sk = 0 # A dummy secret key that isn't used or properly initialized (yet)
         self.num_data_sent = 0
         self.ciphers_from_cloud = 0
-        self.avg_msg_size = 0
+        self.avg_msg_size = []
         self.num_gen = 0
         self.comp_req_queue = queue.Queue(1)
         self.data_queue = queue.Queue(data_queue_len)
@@ -81,15 +81,17 @@ class Sensor(Tier):
         # Enqueue data for low priority sending 
         self.num_gen += 1
         plaintxt = self.data_gen.get_next()
-        if plaintxt is None or self.sim_lim_reached:
+        if plaintxt is None and self.data_queue.empty():
             self.done = True
             return
         cipher = self.encrypt(plaintxt)
         # Enqueue if there is room
         try:
-            self.data_queue.put_nowait(cipher)
+            if plaintxt is not None:
+                self.data_queue.put_nowait(cipher)
         except queue.Full:
             # If there is not room in the queue drop data
+            print("drops")
             return
 
     def receive_packet(self):
@@ -104,7 +106,7 @@ class Sensor(Tier):
             insertc = packet.data[0]
             compare, overwrite, enc = packet.data[1]
             self.ciphers_from_cloud += len(compare)
-            self.avg_msg_size += len(compare)/1000
+            self.avg_msg_size.append(len(compare))
             # Dummy decryption of ciphers
             insertv = self.decrypt(insertc)  # Dummy decryption of ciphers
             comparev = compare
@@ -174,7 +176,7 @@ class Server(Tier):
         self.val_being_inserted = None
         self.encoding_being_inserted = None
         self.traversals = 0
-        self.avg_traversal = 0
+        self.avg_traversal = []
 
     def receive_packet(self):
         packet = self.communicator.read()
@@ -199,7 +201,7 @@ class Server(Tier):
                     # Insert successful!
                     self.val_being_inserted = None 
                     self.encoding_being_inserted = None
-                    self.avg_traversal += self.traversals / 1000
+                    self.avg_traversal.append(self.traversals)
                     self.traversals = 0
                 else:
                     order_query = [self.val_being_inserted, (compare, overwrite, self.encoding_being_inserted)]
@@ -214,7 +216,7 @@ class Server(Tier):
                 # Insert successful!
                 self.val_being_inserted = None
                 self.encoding_being_inserted = None
-                self.avg_traversal += self.traversals/1000
+                self.avg_traversal.append(self.traversals)
                 self.traversals = 0
             else:
                 order_query = [self.val_being_inserted, (compare, overwrite, self.encoding_being_inserted)]

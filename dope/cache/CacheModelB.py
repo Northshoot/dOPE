@@ -1,5 +1,6 @@
 import copy
 import logging
+import time
 from ..utils import print_ctrl
 
 def decrypt(cipher):
@@ -23,7 +24,7 @@ class OutgoingMessage(object):
         self.messageType = messageType
         self.start_flag = start_flag 
         self.end_flag = end_flag
-        self.timestamp
+        self.timestamp = time.asctime(time.localtime())
 
     def __str__(self):
         return ("Message Type" + str(self.messageType) + "\n" 
@@ -322,6 +323,7 @@ class CacheModel(object):
             next_child = self.traverse_node(current_node_start, new_plaintext)
             if next_child is None:
                 # Repeat!
+                self.sync_messages.append(OutgoingMessage(messageType[4], new_entry_encoding))
                 self.logger.debug("Found duplicate")
                 return
             new_entry_encoding.append(next_child)
@@ -338,6 +340,8 @@ class CacheModel(object):
         new_entry = self._update_node(new_entry_encoding, new_plaintext)
         self.lru_tag += 1
         if new_entry is None:
+            # Repeat!
+            self.sync_messages.append(OutgoingMessage(messageType[4], new_entry_encoding))
             return
         new_entry_cp = copy.deepcopy(new_entry)
 

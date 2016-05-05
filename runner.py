@@ -16,8 +16,8 @@ def run(numTics, dataTics, networkTics, data_queue_len, distribution,
     #
     # # Run basline simulation
     k = 10 # Talos value for k-ary tree branching
-    # mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, k,
-    #               distribution, data_file)
+    mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, k,
+                  distribution, data_file)
 
     from dope import dOPE
 
@@ -80,7 +80,7 @@ if __name__ == "__main__":
 
     data_queue_len = args.data_queue_len
     if data_queue_len is None:
-        data_queue_len = 40000
+        data_queue_len = 100000
 
     data_file = None
     distribution = args.distribution

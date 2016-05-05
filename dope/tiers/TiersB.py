@@ -49,14 +49,8 @@ class dSensor(Tier):
         self.total_ciphers_sent = 0
         self.total_ciphers_received = 0
         self.send_message_count = 0
-        self.sim_lim = None
+        self.total_repeats_sent = 0
 
-    @property
-    def sim_lim_reached(self):
-        if self.sim_lim is None:
-            return False
-        else:
-            return self.cache.insert_count == self.sim_lim
 
     def generate_data(self):
         ''' Method generate_data
@@ -117,11 +111,15 @@ class dSensor(Tier):
                                     message2send.end_flag),
                                    message2send.messageType)
         elif len(self.cache.sync_messages) > 0:
-            self.total_ciphers_sent += 1
             message2send = self.cache.sync_messages.pop(0)
-            self.cache.acknowledge_sync(message2send.entry.node_encoding, 
-                                        message2send.entry.node_index)
-            self.communicator.send((message2send.entry, False, False),
+            if message2send.messageType == 'sync':
+                self.total_ciphers_sent += 1
+                self.cache.acknowledge_sync(message2send.entry.node_encoding, 
+                                            message2send.entry.node_index)
+            else:
+                self.total_repeats_sent += 1
+            self.communicator.send((message2send.entry, False, False, 
+                                    message2send.timestamp),
                                    message2send.messageType)
 
     def receive_message(self):
@@ -209,9 +207,10 @@ class dGateway(Tier):
             self.cloud_message_count += 1
             self.cache.logger.debug("Sending delayed sync to server")
             sync_msg = self.cache.sync_messages.pop(0)
-            self.cache.acknowledge_sync(sync_msg.entry.node_encoding, sync_msg.entry.node_index)
+            if sync_msg.messageType == 'sync':
+                self.cache.acknowledge_sync(sync_msg.entry.node_encoding, sync_msg.entry.node_index)
             self.communicator2.send((sync_msg.entry, sync_msg.start_flag,
-                                     sync_msg.end_flag), sync_msg.messageType)
+                                     sync_msg.end_flag, sync_msg.timestamp), sync_msg.messageType)
 
     def receive_sensor_message(self):
         ''' Method receive_message
@@ -309,6 +308,10 @@ class dGateway(Tier):
                     assert(self.cache.priority_messages == [])
                 self.cache.sync_messages.append(OutgoingMessage('sync',
                                                 send_entry))
+            elif packet.call_type == 'sync_repeat':
+                self.cache.logger.debug("Receiving sync repeat with encoding " + str(packet.data[0]))
+                assert(self.cache.priority_messages == [])
+                self.cache.sync_messages.append(OutgoingMessage('sync_repeat', send_entry))
             else:
                 self.cache.logger.error("Packet of call type " + 
                                         packet.call_type + " received")
@@ -352,6 +355,7 @@ class dServer(Tier):
         self.message2send = None
         self.cache = cache.CacheModel(None, out_file)
         self.tree = BTree(k)
+        self.repeat_count = 1
 
     def send_message(self):
         ''' Method send_message
@@ -460,6 +464,10 @@ class dServer(Tier):
             self.tree.insert_direct(entry.cipher_text, entry.node_encoding,
                                     entry.node_index)
             self.cache.logger.debug(str(self.tree))
+        elif packet.call_type == "sync_repeat":
+            self.cache.logger.debug("Receiving sync repeat with encoding: " +
+                                    str(packet.data[0]) + " at time " + str(packet.data[3]))
+            self.repeat_count += 1
 
         else:
             self.cache.logger.error("Packet of call type %s received", 

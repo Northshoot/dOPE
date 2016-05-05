@@ -1,6 +1,6 @@
 __author__ = 'Wdaviau'
 from ..tiers import dSensor, dGateway, dServer
-from time import time
+import time
 from functools import reduce
 from ..utils import print_ctrl
 
@@ -8,7 +8,7 @@ from ..utils import print_ctrl
 def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
          gate_cache_len, distribution = 'random', k = 5, data_file = None):
     print("dope")
-    ts = str(time())
+    ts = str(time.asctime(time.localtime()))
     sensor = dSensor(data_queue_len, distribution, sensor_cache_len, 
                      "dSensorCache" + ts +".log", k, data_file)
     gateway = dGateway("dGatewayCache" + ts + ".log", gate_cache_len, k)
@@ -25,7 +25,6 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
         server.cache.logger.debug("---------------\n" + "BEGINNING TIC\n" +
                                   str(tic) + "---------------\n")
 
-
         #Generate data and place into queue
         if tic % dataTics == 0:
             sensor.generate_data()
@@ -37,6 +36,7 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
 
                 ret = "----------------Finished!---------------\n"
                 ret += "***Total insersts = " + str(sensor.cache.insert_count) +"***\n"
+                ret += "***Total repeated syncs " + str(server.repeat_count) + "***\n"
                 ret += "----------------Messages----------------\n"
                 ret += "|Embedded to Gateway | Gateway to Cloud|\n"
                 ret += "|--------------------|-----------------|\n"
