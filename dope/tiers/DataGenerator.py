@@ -43,7 +43,6 @@ class DataGenerator(object):
                 return None
             else:
                 data = self.timeseries[self.current]
-                print("Printing Current num: %d" %self.current)
                 self.current += 1
             return data
         else:
