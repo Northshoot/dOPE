@@ -37,6 +37,9 @@ def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, k,
                 avg_travs = sum(server.avg_traversal)/len(server.avg_traversal)
                 ret = stats_string(str(sensor.num_data_sent), 
                                    "N/A", 
+                                   str(server.mOPE_struct.num_rebal),
+                                   "N/A",
+                                   "N/A",
                                    str(gateway.cloud_message_count),
                                    str(gateway.cloud_message_count),
                                    "N/A",
@@ -44,10 +47,10 @@ def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, k,
                                    "N/A",
                                    str(sensor.num_data_sent),                                   
                                    str(sensor.ciphers_from_cloud),
-                                   str(avg_msg_size),
+                                   str(round(avg_msg_size, 2)),
                                    "N/A",
-                                   "0",
-                                   str(avg_travs))
+                                   str(round(avg_travs, 2)),
+                                   str(round(avg_travs, 2)))
 
                 print(ret)
                 logger.info(ret)
