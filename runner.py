@@ -19,11 +19,13 @@ def run(numTics, dataTics, networkTics, data_queue_len, distribution,
     mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, k,
                   distribution, data_file)
 
-    from dope import dOPE
+    from dope import dOPE_B as dOPE
+    #from dope import dOPE_full as dOPE# To run with scapegoat tree
 
     # Run the current dOPE simulation (Naive cache model right now )
     dOPE(numTics, dataTics, networkTics, data_queue_len, cacheS_len, 
          cacheG_len, distribution, k, data_file)
+
     
 
 # def get_plot_data(numTics, dataTics, networkTics, data_queue_len, distribution):
