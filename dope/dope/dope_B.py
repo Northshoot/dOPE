@@ -37,6 +37,9 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
                 avg_msg_size = sum(sensor.avg_msg_size)/len(sensor.avg_msg_size)
                 ret = stats_string(str(sensor.cache.insert_count), 
                                    str(server.repeat_count),
+                                   str(server.tree.num_rebal),
+                                   str(sensor.cache.evict_count),
+                                   str(sensor.cache.rebal_count),
                                    str(gateway.sensor_message_count), 
                                    str(gateway.cloud_message_count),
                                    str(gateway.miss_count),
@@ -44,10 +47,10 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
                                    str(gateway.rebal_count),
                                    str(sensor.total_ciphers_sent),
                                    str(sensor.total_ciphers_received),
-                                   str(avg_msg_size),
+                                   str(round(avg_msg_size,2)),
                                    str(n_miss_inserts),
-                                   str(avg_traversals[1]),
-                                   str(avg_traversals[0]))
+                                   str(round(avg_traversals[1] + avg_traversals[0],2)),
+                                   str(round(avg_traversals[0],2)))
 
 
                 sensor.cache.logger.info(ret)

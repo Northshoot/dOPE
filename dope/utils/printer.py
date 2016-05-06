@@ -1,16 +1,22 @@
 
 
-def stats_string(total_inserts, repeat_inserts, MtoG, GtoC, miss_count,
+def stats_string(total_inserts, repeat_inserts, rebal_events, evict_events,
+                 flush_events, MtoG, GtoC, miss_count,
                  sync_count, rebal_count, ciphers_sent, ciphers_received,
                  avg_msg_size, n_miss_inserts, g_rts, c_rts):
     '''
     Return a formatted string of dOPE/mOPE statistics to report
     simulation results
     '''
-    ret = "-----------------------------Data Inserted----------------------------\n"
+    ret = "-----------------------------Data Inserted-----------------------------\n"
     ret += "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n"
     ret += "***Total inserts = " + total_inserts +"***\n"
     ret += "***Total repeated syncs " + repeat_inserts + "***\n\n"
+    ret += "------------------------------Event Count-----------------------------\n"
+    ret += "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n"
+    ret += "***Tree rebalances = " + rebal_events + "***\n"
+    ret += "***Sensor evictions = " + evict_events + "***\n"
+    ret += "***Sensor flushes for rebalance = " + flush_events + "***\n\n"
     ret += "-----------------------------Message Count----------------------------\n"
     ret += "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n"
     ret += "|Embedded to Gateway | Gateway to Cloud|\n"

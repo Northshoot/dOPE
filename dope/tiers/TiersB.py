@@ -153,7 +153,7 @@ class dSensor(Tier):
 
 class dGateway(Tier):
     '''
-    Gateway calss in dOPE heirarchy.  Intermediary between Sensor and
+    Gateway class in dOPE heirarchy.  Intermediary between Sensor and
     Server.  Forwards sync messages, propogates evictions when cache is
     full, pushes rebalance messages through to server and flushes 
     cache, responds to insert messages querying server if necessary
@@ -312,6 +312,7 @@ class dGateway(Tier):
                 self.cache.sync_messages.append(OutgoingMessage('sync',
                                                 send_entry))
             elif packet.call_type == 'sync_repeat':
+                self.ongoing_traversal = False
                 self.cache.logger.debug("Receiving sync repeat with encoding " + str(packet.data[0]))
                 assert(self.cache.priority_messages == [])
                 self.cache.sync_messages.append(OutgoingMessage('sync_repeat', send_entry))

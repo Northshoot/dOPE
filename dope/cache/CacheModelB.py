@@ -92,6 +92,7 @@ class CacheModel(object):
         self.evict_count = 0
         self.plaintexts_who_miss = []
         self.insert_count = 0
+        self.rebal_count = 0
 
     def __str__(self):
         sizes = ("Max Size: " + str(self.max_size) + "\nCurrent Size: " +
@@ -179,6 +180,7 @@ class CacheModel(object):
         Flush the entire cache due to a rebalance.  Return any unsynced entries
         to synchronize with higher tiers
         '''
+        self.rebal_count += 1
         entries_to_send = [x for x in self.cache if not x.synced]
         outgoing = []
         # Clear cache
