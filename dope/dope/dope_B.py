@@ -3,6 +3,7 @@ from ..tiers import dSensor, dGateway, dServer
 import time
 from functools import reduce
 from ..utils import print_ctrl
+from ..utils.printer import stats_string
 
 
 def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
@@ -33,26 +34,21 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
                 avg_traversals = reduce(lambda a, x: [a[0]+x[0], a[1]+x[1]], gateway.num_traversals, [0,0])
                 avg_traversals[0] /= n_miss_inserts
                 avg_traversals[1] /= n_miss_inserts
+                avg_msg_size = sum(sensor.avg_msg_size)/len(sensor.avg_msg_size)
+                ret = stats_string(str(sensor.cache.insert_count), 
+                                   str(server.repeat_count),
+                                   str(gateway.sensor_message_count), 
+                                   str(gateway.cloud_message_count),
+                                   str(gateway.miss_count),
+                                   str(gateway.sync_count),
+                                   str(gateway.rebal_count),
+                                   str(sensor.total_ciphers_sent),
+                                   str(sensor.total_ciphers_received),
+                                   str(avg_msg_size),
+                                   str(n_miss_inserts),
+                                   str(avg_traversals[1]),
+                                   str(avg_traversals[0]))
 
-                ret = "----------------Finished!---------------\n"
-                ret += "***Total insersts = " + str(sensor.cache.insert_count) +"***\n"
-                ret += "***Total repeated syncs " + str(server.repeat_count) + "***\n"
-                ret += "----------------Messages----------------\n"
-                ret += "|Embedded to Gateway | Gateway to Cloud|\n"
-                ret += "|--------------------|-----------------|\n"
-                ret += "|        " + str(gateway.sensor_message_count) + "            |" + str(gateway.cloud_message_count) +"         |\n"
-                ret += "----------------------------------------\n"
-                ret += "|   Misses  |   Syncs   |  Rebalances   |\n"
-                ret += "|-----------|-----------|---------------|\n"
-                ret += "|  " + str(gateway.miss_count) + "    |    " + str(gateway.sync_count) + "   |   " + str(gateway.rebal_count) + "  |\n\n"
-                ret += "----------------Ciphertexts sent, proxy for bytes sent----------------\n"
-                ret += "| Number of ciphertexts sent by the sensor: " + str(sensor.total_ciphers_sent) + "\n"
-                ret += "| Number of ciphertexts sent back to the sensor: " + str(sensor.total_ciphers_received) + "\n\n"
-                ret += "----------------Miss Breakdown----------------\n"
-                ret += "Number of inserts requiring traversal: " + str(n_miss_inserts) +"\n"
-                ret += "| Average miss gateway hits | Average miss cloud hits|\n"
-                ret += "--------------------------------------------------------\n"
-                ret += "|    " + str(avg_traversals[1]) + "        |   " + str(avg_traversals[0]) + "     |\n"
 
                 sensor.cache.logger.info(ret)
                 gateway.cache.logger.info(ret)

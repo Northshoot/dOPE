@@ -2,6 +2,7 @@ __author__ = 'WDaviau'
 from ..tiers import Sensor, Gateway, Server
 import logging
 import time
+from ..utils.printer import stats_string
 
 '''
 Functions defining mOPE simulation
@@ -32,14 +33,22 @@ def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, k,
         if tic % dataTics == 0:
             sensor.generate_data()
             if sensor.done:
-                ret = "Finished! Gateway received " + str(gateway.sensor_message_count) + "\n"
-                ret += " Gateway sent " + str(gateway.cloud_message_count) +"\n"
-                ret += "Number of rebals " + str(server.mOPE_struct.num_rebal) +"\n"
-                ret += "Number of ciphers received at sensor: " + str(sensor.ciphers_from_cloud) +"\n"
-                ret += 'Number of ciphers sent by sensor: ' + str(sensor.num_data_sent) +"\n"
-                ret += 'Avg message size: ' + str(sum(sensor.avg_msg_size)/len(sensor.avg_msg_size)) +"\n"
-                ret += 'Avg traversals: ' + str(sum(server.avg_traversal)/len(server.avg_traversal))+ "\n"
-                print(server.avg_traversal)
+                avg_msg_size = sum(sensor.avg_msg_size)/len(sensor.avg_msg_size)
+                avg_travs = sum(server.avg_traversal)/len(server.avg_traversal)
+                ret = stats_string(str(sensor.num_data_sent), 
+                                   "N/A", 
+                                   str(gateway.cloud_message_count),
+                                   str(gateway.cloud_message_count),
+                                   "N/A",
+                                   "N/A",
+                                   "N/A",
+                                   str(sensor.num_data_sent),                                   
+                                   str(sensor.ciphers_from_cloud),
+                                   str(avg_msg_size),
+                                   "N/A",
+                                   "0",
+                                   str(avg_travs))
+
                 print(ret)
                 logger.info(ret)
                 break

@@ -50,6 +50,8 @@ class dSensor(Tier):
         self.total_ciphers_received = 0
         self.send_message_count = 0
         self.total_repeats_sent = 0
+        self.avg_msg_size = []
+
 
 
     def generate_data(self):
@@ -139,6 +141,7 @@ class dSensor(Tier):
             assert(waiting)
             node = packet.data[0]
             self.total_ciphers_received += len(node)
+            self.avg_msg_size.append(len(node))
             for entry in node:
                 entry.lru = self.cache.lru_tag
             self.cache.lru_tag += 1
