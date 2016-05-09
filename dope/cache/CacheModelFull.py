@@ -1,8 +1,9 @@
 import copy
 import math
 import logging
+import time
 
-from  datastruct.scapegoat_tree import SGTree, enc_insert
+from  ..datastruct.scapegoat_tree import SGTree, enc_insert
 
 def decrypt(cipher):
     ''' Dummy decryption method
@@ -25,13 +26,14 @@ class OutgoingMessage(object):
         self.messageType = messageType
         self.start_flag = start_flag 
         self.end_flag = end_flag
+        self.timestamp = time.asctime(time.localtime())
 
     def __str__(self):
         return ("Message Type" + str(self.messageType) + "\n" 
                 + str(self.entryList)
                )
 
-messageType = ["insert", "rebalance", "sync", "evict"]
+messageType = ["insert", "rebalance", "sync", "evict", "sync_repeat"]
 
 
 def encoding_cmp(enc1, enc2):
@@ -164,6 +166,8 @@ class CacheModel(object):
         self.outfile = logfile
 
         self.evict_count = 0
+        self.insert_count = 0
+        self.rebal_count = 0
 
     def __str__(self):
         sizes = ("Max Size: " + str(self.max_size) + "\nCurrent Size: " +
@@ -236,7 +240,6 @@ class CacheModel(object):
         cache and send a message to the next space in the hierarchy
         '''
         self.evict_count += 1
-        print("evicting")
         sorted_entries = sorted(self.cache, key=lambda x: x.lru)
         lru_entries = sorted_entries[:num_evictions]
         self.cache = [x for x in self.cache if not x in lru_entries]
@@ -316,6 +319,7 @@ class CacheModel(object):
         at rebalance_entry to prepare for a nonlocal rebalance.
         Returns the list of outgoing messages with rebalance requests.
         '''
+        self.rebal_count += 1
         root_entry = copy.deepcopy(self._entry_with_encoding(start_encoding))
         subtree_to_evict = [x for x in self.cache if 
                             x.encoding[:len(start_encoding)] == start_encoding]
@@ -528,6 +532,7 @@ class CacheModel(object):
         else:
             try:
                 current_entry = self.cache_lookup[""]
+                self.insert_count += 1
             except KeyError:
                 self._handle_miss([], new_plaintext)
                 return
@@ -542,7 +547,9 @@ class CacheModel(object):
                 self.logger.debug("Found duplicate %d in the cache", 
                                  current_plaintext)
                 self.waiting_on_insert = (False, None, None)
-                return # Found duplicate in cache
+                # Found duplicate in cache
+                self.sync_messages.append(OutgoingMessage(messageType[4], new_entry_encoding[:]))
+                return
             elif (current_plaintext > new_plaintext and 
                  not current_entry.has_left_child):
                 # Insert new value as left child
@@ -576,7 +583,9 @@ class CacheModel(object):
         if current_plaintext == new_plaintext:
             self.logger.debug("Found duplicate %d in the cache", 
                              current_plaintext)
-            return # Found duplicate in cache
+            # Found duplicate in cache
+            self.sync_messages.append(OutgoingMessage(messageType[4], new_entry_encoding[:]))
+            return
         elif new_plaintext < current_plaintext:
             current_entry.has_left_child = True
             new_entry_encoding.append(0)
@@ -734,7 +743,7 @@ class CacheModel(object):
             return None
         entry2send = copy.deepcopy(entry)
         entry2send.synced = True
-        self.logger.deubg("Sending insert reply with cipher %d",
+        self.logger.debug("Sending insert reply with cipher %d",
                          entry.cipher_text)
         return OutgoingMessage(messageType[0], entry2send)
 

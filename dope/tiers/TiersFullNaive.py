@@ -1,11 +1,11 @@
 __author__ = 'WDaviau'
-from comm.comm import Communicator
+from ..comm.comm import Communicator
 from .DataGenerator import DataGenerator
-from datastruct.scapegoat_tree import traverse_insert
-from utils import debugmethods
+from ..datastruct.scapegoat_tree import traverse_insert
+from ..utils import debugmethods
 import queue
-import cache.CacheModelFull as cache
-from cache.CacheModelFull import OutgoingMessage, CacheEntry
+from ..cache import CacheModelFull as cache
+from ..cache import OutgoingMessage, CacheEntry
 import copy
 
 class Tier(object):
@@ -25,16 +25,17 @@ class Tier(object):
             self.communicator2.connect(other_tier2.communicator)
             other_tier2.communicator.connect(self.communicator2)
 
-class dSensor(Tier):
+class dSensor_full(Tier):
     '''
     Sensor class in dOPE hierarchy.  Equipped to generate data and
     insert into the encoding cache or enqueue / drop data if inserts 
     are blocking and to send rebalance, insert, evict and sync messages
     as well as to receive insert response messages.
     '''
-    def __init__(self, data_queue_len, distribution, cache_len, out_file):
-        super(dSensor,self).__init__('Sensor',Communicator())
-        self.data_gen = DataGenerator(distribution, bounds = [-1000,1000])
+    def __init__(self, data_queue_len, distribution, cache_len, out_file, data_file):
+        super(dSensor_full,self).__init__('Sensor',Communicator())
+        self.data_gen = DataGenerator(distribution, bounds = [-1000,1000],
+                                      data_file = data_file)
         self.num_data_sent = 0
         self.num_gen = 0
         self.comp_req_queue = queue.Queue(1)
@@ -45,6 +46,8 @@ class dSensor(Tier):
         # For recording more precise dope statistics
         self.total_ciphers_sent = 0
         self.total_ciphers_received = 0
+        self.total_repeats_sent = 0
+
 
     def generate_data(self):
         ''' Method generate_data
@@ -55,21 +58,19 @@ class dSensor(Tier):
         # Enqueue data for low priority sending 
         self.num_gen += 1
         plaintxt = self.data_gen.get_next()
+        if plaintxt is None and self.data_queue.empty():
+            self.done = True
+            return
         if (len(self.cache.priority_messages) < 1 and not 
             self.cache.waiting_on_insert[0]):
             self.insert_round_trips.append(0)
             # If queue is not empty then pop one off
             if not self.data_queue.empty():
                 popped_ptext = self.data_queue.get_nowait()
-                if popped_ptext == -9999:
-                    self.done = True;
-                    return
-                self.data_queue.put_nowait(plaintxt)
+                if plaintxt is not None:
+                    self.data_queue.put_nowait(plaintxt)
                 self.cache.insert(popped_ptext)
             else:
-                if plaintxt == -9999:
-                    self.done = True;
-                    return
                 self.cache.insert(plaintxt)
             self.num_data_sent += 1
             return
@@ -82,9 +83,11 @@ class dSensor(Tier):
                                    "Wating on insert: " 
                                    + str(self.cache.waiting_on_insert[0]),
                                    len(self.cache.priority_messages))
-            self.data_queue.put_nowait(plaintxt)
-            self.num_data_sent += 1
+            if plaintxt is not None:
+                self.data_queue.put_nowait(plaintxt)
+                self.num_data_sent += 1
         except queue.Full:
+            print("dropping")
             # If there is not room in the queue drop data
             return
 
@@ -104,10 +107,14 @@ class dSensor(Tier):
                                     message2send.end_flag),
                                    message2send.messageType)
         elif len(self.cache.sync_messages) > 0:
-            self.total_ciphers_sent += 1
             message2send = self.cache.sync_messages.pop(0)
-            self.cache.acknowledge_sync(message2send.entry.encoding)
-            self.communicator.send((message2send.entry, False, False),
+            if message2send.messageType == 'sync':
+                self.total_ciphers_sent += 1
+                self.cache.acknowledge_sync(message2send.entry.encoding)
+            else:
+                self.total_repeats_sent += 1
+            self.communicator.send((message2send.entry, False, False,
+                                    message2send.timestamp),
                                    message2send.messageType)
 
     def receive_message(self):
@@ -136,7 +143,7 @@ class dSensor(Tier):
             self.cache.insert(plaintxt, encoding)
 
 
-class dGateway(Tier):
+class dGateway_full(Tier):
     '''
     Gateway calss in dOPE heirarchy.  Intermediary between Sensor and
     Server.  Forwards sync messages, propogates evictions when cache is
@@ -144,7 +151,7 @@ class dGateway(Tier):
     cache, responds to insert messages querying server if necessary
     '''
     def __init__(self, out_file, cache_len = 1000):
-        super(dGateway,self).__init__('Gateway', Communicator(), Communicator())
+        super(dGateway_full,self).__init__('Gateway', Communicator(), Communicator())
         self.rebalance_received = []
         self.rebalance2send = []
         self.rebalance_root_enc = None
@@ -196,9 +203,11 @@ class dGateway(Tier):
             self.cloud_message_count += 1
             self.cache.logger.debug("Sending delayed sync to server")
             sync_msg = self.cache.sync_messages.pop(0)
-            self.cache.acknowledge_sync(sync_msg.entry.encoding)
+            if sync_msg.messageType == 'sync':
+                self.cache.acknowledge_sync(sync_msg.entry.encoding)
             self.communicator2.send((sync_msg.entry, sync_msg.start_flag,
-                                     sync_msg.end_flag), sync_msg.messageType)
+                                     sync_msg.end_flag, sync_msg.timestamp), 
+                                    sync_msg.messageType)
 
     def receive_sensor_message(self):
         ''' Method receive_message
@@ -300,6 +309,11 @@ class dGateway(Tier):
                     assert(self.cache.priority_messages == [])
                 self.cache.sync_messages.append(OutgoingMessage('sync',
                                                 send_entry))
+            elif packet.call_type =='sync_repeat':
+                self.ongoing_traversal = False
+                self.cache.logger.debug("Receiving sync repeat with encoding " + str(packet.data[0]))
+                assert(self.cache.priority_messages == [])
+                self.cache.sync_messages.append(OutgoingMessage('sync_repeat', send_entry))
             else:
                 self.cache.logger.error("Packet of call type " + 
                                         packet.call_type + " received")
@@ -331,18 +345,19 @@ class dGateway(Tier):
             self.sensor_msg2send = OutgoingMessage('insert', send_entry)
 
 
-class dServer(Tier):
+class dServer_full(Tier):
     '''
     Server class in dOPE hierarchy.  Equipped to receive insert, 
     eviction, rebalance and sync messages and to send back insert 
     replies.
     '''
     def __init__(self, out_file):
-        super(dServer,self).__init__('Server',Communicator())
+        super(dServer_full,self).__init__('Server',Communicator())
         self.rebalance_entries = []
         self.root_enc = None
         self.message2send = None
         self.cache = cache.CacheModel(None, out_file)
+        self.repeat_count = 0
 
     def send_message(self):
         ''' Method send_message
@@ -414,6 +429,10 @@ class dServer(Tier):
             entry.synced = True
             assert(self.cache._entry_with_encoding(entry.encoding) is None)
             self.cache.merge_new([entry])
+        elif packet.call_type == "sync_repeat":
+            self.cache.logger.debug("Receiving sync repeat with encoding " +
+                                    str(packet.data[0]) + " at time " + str(packet.data[3]))
+            self.repeat_count += 1
         else:
             self.cache.logger.error("Packet of call type %s received", 
                                     packet.call_type)

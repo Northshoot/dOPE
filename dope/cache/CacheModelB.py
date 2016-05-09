@@ -15,7 +15,7 @@ def encrypt(plaintext):
     return plaintext
 
 
-class OutgoingMessage(object):
+class OutgoingMessageB(object):
     ''' A message to be sent to another level of the caching hierarchy.
     '''
     def __init__(self, messageType, entry, start_flag = False, 
@@ -27,15 +27,15 @@ class OutgoingMessage(object):
         self.timestamp = time.asctime(time.localtime())
 
     def __str__(self):
-        return ("Message Type" + str(self.messageType) + "\n" 
+        return ("Message Type" + str(self.messageTypeB) + "\n" 
                 + str(self.entryList)
                )
 
-messageType = ["insert", "rebalance", "sync", "evict", "sync_repeat"]
+messageTypeB = ["insert", "rebalance", "sync", "evict", "sync_repeat"]
 
 
 
-class CacheEntry(object):
+class CacheEntryB(object):
     ''' One entry in a cache table, keeps track of ciphertext, encoding,
         lru tag, subtree size, and leaf status
     '''
@@ -139,7 +139,7 @@ class CacheModel(object):
 
             if not entry.synced:
                 self.logger.debug("Adding eviction to outgoing messages")
-                self.priority_messages.append(OutgoingMessage(messageType[3],
+                self.priority_messages.append(OutgoingMessageB(messageTypeB[3],
                                               copy.deepcopy(entry)))
 
 
@@ -188,24 +188,24 @@ class CacheModel(object):
         self.sync_messages = []
         self.logger.debug("Adding rebalance root to outgoing messages.")
         if len(entries_to_send) == 0:
-            outgoing.append(OutgoingMessage(messageType[1], 
+            outgoing.append(OutgoingMessageB(messageTypeB[1], 
                                             new_entry_encoding,
                                             start_flag=True,
                                             end_flag=True))
             return outgoing
-        outgoing.append(OutgoingMessage(messageType[1], 
+        outgoing.append(OutgoingMessageB(messageTypeB[1], 
                                         new_entry_encoding,
                                         start_flag=True,
                                         end_flag=False))
         for entry in entries_to_send[:len(entries_to_send)-1]:
             self.logger.debug("Adding rebalance request to outgoing messages  " +
                              "Ciphertext = " + str(entry.cipher_text))
-            outgoing.append(OutgoingMessage(messageType[1],
+            outgoing.append(OutgoingMessageB(messageTypeB[1],
                                             copy.deepcopy(entry)))
         # Add last message
         self.logger.debug("Adding rebalance request to outgoing messages. " + 
                          "Ciphertext = " + str(entries_to_send[-1].cipher_text))
-        outgoing.append(OutgoingMessage(messageType[1],
+        outgoing.append(OutgoingMessageB(messageTypeB[1],
                                         copy.deepcopy(entries_to_send[-1]),
                                         end_flag=True))
         return outgoing
@@ -223,7 +223,7 @@ class CacheModel(object):
             self._evict_node()
         self.waiting_on_insert = (True, next_encoding, plaintext)
         self.logger.debug("Adding cache miss request to outgoing messages")
-        self.priority_messages.append(OutgoingMessage(messageType[0], 
+        self.priority_messages.append(OutgoingMessageB(messageTypeB[0], 
                                       next_encoding[:]))
 
 
@@ -277,7 +277,7 @@ class CacheModel(object):
         if not found:
             index = len(entries)
             self.logger.debug(index)
-        new_entry = CacheEntry(new_plaintext, encoding, index, self.lru_tag)
+        new_entry = CacheEntryB(new_plaintext, encoding, index, self.lru_tag)
         self._cachetable_add(new_entry)
         return new_entry
 
@@ -298,11 +298,11 @@ class CacheModel(object):
             self.insert_count += 1
             if self.current_size == 0:
                 self.logger.debug("Inserting original root")
-                self.cache.append(CacheEntry(new_plaintext, [], 0, self.lru_tag))
+                self.cache.append(CacheEntryB(new_plaintext, [], 0, self.lru_tag))
                 self.lru_tag += 1
                 self.current_size += 1
                 new_entry = copy.deepcopy(self.cache[0])
-                self.sync_messages.append(OutgoingMessage(messageType[2], new_entry))
+                self.sync_messages.append(OutgoingMessageB(messageTypeB[2], new_entry))
                 return
 
 
@@ -325,7 +325,7 @@ class CacheModel(object):
             next_child = self.traverse_node(current_node_start, new_plaintext)
             if next_child is None:
                 # Repeat!
-                self.sync_messages.append(OutgoingMessage(messageType[4], new_entry_encoding))
+                self.sync_messages.append(OutgoingMessageB(messageTypeB[4], new_entry_encoding))
                 self.logger.debug("Found duplicate")
                 return
             new_entry_encoding.append(next_child)
@@ -343,12 +343,12 @@ class CacheModel(object):
         self.lru_tag += 1
         if new_entry is None:
             # Repeat!
-            self.sync_messages.append(OutgoingMessage(messageType[4], new_entry_encoding))
+            self.sync_messages.append(OutgoingMessageB(messageTypeB[4], new_entry_encoding))
             return
         new_entry_cp = copy.deepcopy(new_entry)
 
         # Sync with higher tiers
-        self.sync_messages.append(OutgoingMessage(messageType[2], new_entry_cp))
+        self.sync_messages.append(OutgoingMessageB(messageTypeB[2], new_entry_cp))
 
         # If necessary flush cache for rebalance
         self.rebalance(new_entry_encoding)
@@ -418,7 +418,7 @@ class CacheModel(object):
             entry.synced = True
 
         self.logger.debug("Sending insert reply")
-        return OutgoingMessage(messageType[0], send)
+        return OutgoingMessageB(messageTypeB[0], send)
 
 
 

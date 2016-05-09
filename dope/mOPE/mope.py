@@ -73,8 +73,7 @@ def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, k,
 
 
   # Print the resulting mOPE data struct at the server
-    print("The resulting tree structure")
+    #print("The resulting tree structure")
     #print(list(server.mOPE_struct))
-    print( "For " + str( sensor.num_data_sent - sensor.data_queue.qsize()) + " total inserts")
-    print("And " + str(sensor.num_gen - sensor.num_data_sent) + " dropped packets")
+
  

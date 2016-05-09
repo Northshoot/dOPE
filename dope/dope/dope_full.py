@@ -1,9 +1,9 @@
 __author__ = 'Wdaviau'
-from tiers.TiersFullNaive import dSensor, dGateway, dServer
-from  datastruct.binarytree import BSTree, enc_insert
-from time import time
+from ..tiers import dSensor_full, dGateway_full, dServer_full
+from ..datastruct.binarytree import BSTree, enc_insert
+import time
 from functools import reduce
-
+from ..utils.printer import stats_string
 
 
 def strip(enc_root, enc):
@@ -69,13 +69,13 @@ def convert_cache_to_forest(cache, out_file):
                 print("\n", file=logfile)
 
 
-def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
-         gate_cache_len, distribution = 'random'):
-    ts = str(time())
-    sensor = dSensor(data_queue_len, distribution, sensor_cache_len, 
-                     "dSensorCache" + ts +".log")
-    gateway = dGateway("dGatewayCache" + ts + ".log", gate_cache_len)
-    server = dServer("dServerCache" + ts + ".log")
+def dOPE_full(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
+              gate_cache_len, distribution = 'random', k=2, data_file = None):
+    ts = str(time.asctime(time.localtime()))
+    sensor = dSensor_full(data_queue_len, distribution, sensor_cache_len, 
+                     "dSensorCache" + ts +".log", data_file)
+    gateway = dGateway_full("dGatewayCache" + ts + ".log", gate_cache_len)
+    server = dServer_full("dServerCache" + ts + ".log")
     sensor.link(gateway)
     gateway.link(sensor,server)
     tic = 0
@@ -91,62 +91,70 @@ def dOPE(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
         if tic % dataTics == 0:
             sensor.generate_data()
             if sensor.done:
-                print("Finished! Gateway received " + str(gateway.sensor_message_count) + " Gateway sent " + str(gateway.cloud_message_count))
-                print("Misses: " + str(gateway.miss_count) )
-                print("Syncs: " + str(gateway.sync_count))
-                print("Rebals: " + str(gateway.rebal_count))
-                print("Evictions: " + str(sensor.cache.evict_count))
                 n_miss_inserts = len(gateway.num_traversals)
-                print("Number of ciphers received at sensor: " + str(sensor.total_ciphers_received))
-                print('Number of ciphers sent by sensor: ' + str(sensor.total_ciphers_sent))
-                print('Number of inserts requiring traversal: ' + str(n_miss_inserts))
                 avg_traversals = reduce(lambda a, x: [a[0]+x[0], a[1]+x[1]], gateway.num_traversals, [0,0])
                 avg_traversals[0] /= n_miss_inserts
                 avg_traversals[1] /= n_miss_inserts
-                print('Traversal breakdown: ' + str(avg_traversals))
+                ret = stats_string(str(sensor.cache.insert_count), 
+                                   str(server.repeat_count),
+                                   str(sensor.cache.rebal_count),
+                                   str(sensor.cache.evict_count),
+                                   str(sensor.cache.rebal_count),
+                                   str(gateway.sensor_message_count), 
+                                   str(gateway.cloud_message_count),
+                                   str(gateway.miss_count),
+                                   str(gateway.sync_count),
+                                   str(gateway.rebal_count),
+                                   str(sensor.total_ciphers_sent),
+                                   str(sensor.total_ciphers_received),
+                                   str("1"),
+                                   str(n_miss_inserts),
+                                   str(round(avg_traversals[1] + avg_traversals[0],2)),
+                                   str(round(avg_traversals[0],2)))
+
+                sensor.cache.logger.info(ret)
+                gateway.cache.logger.info(ret)
+                server.cache.logger.info(ret)
 
                 break
-        print("Total misses: " + str(gateway.miss_count))
         # Send packets between devices
         if tic % networkTics == 0:
             sensor.receive_message()
             sensor.send_message()
-            convert_cache_to_forest(sensor.cache.cache, sensor.cache.outfile)
-            with open(sensor.cache.outfile, "a") as sensorF:
-                print(sensor.cache, file=sensorF)
-            #     print(sensor.cache.cache, file=sensorF)
-            #     print(sensor.cache.cache_lookup, file=sensorF)
+            #convert_cache_to_forest(sensor.cache.cache, sensor.cache.outfile)
+            # with open(sensor.cache.outfile, "a") as sensorF:
+            #     print(sensor.cache, file=sensorF)
+            # #     print(sensor.cache.cache, file=sensorF)
+            # #     print(sensor.cache.cache_lookup, file=sensorF)
             gateway.receive_sensor_message()
             gateway.send2server()
-            convert_cache_to_forest(gateway.cache.cache, gateway.cache.outfile)
-            with open(gateway.cache.outfile, "a") as gateF:
-                print(gateway.cache, file=gateF)
-            #     print(gateway.cache.cache, file=gateF)
+            #convert_cache_to_forest(gateway.cache.cache, gateway.cache.outfile)
+            # with open(gateway.cache.outfile, "a") as gateF:
+            #     print(gateway.cache, file=gateF)
+            # #     print(gateway.cache.cache, file=gateF)
             server.receive_message()
             server.send_message()
-            convert_cache_to_forest(server.cache.cache, server.cache.outfile)
-            with open(server.cache.outfile, "a") as serverF:
-                print(server.cache, file=serverF)
+            #convert_cache_to_forest(server.cache.cache, server.cache.outfile)
+            # with open(server.cache.outfile, "a") as serverF:
+            #     print(server.cache, file=serverF)
             gateway.receive_server_message()
             gateway.send2sensor()
 
         tic += 1
-        print(tic)
-        print("Inserted so far: " + str(sensor.num_data_sent - sensor.data_queue.qsize()))
    
 
    
-    print("The number of data recorded by the system")
-    print(sensor.num_data_sent - sensor.data_queue.qsize())
-    print("The resulting cache at the sensor")
-    print(sensor.cache)
-    print("The resulting tree(s) at the sensor")
-    convert_cache_to_forest(sensor.cache.cache, None)
-    print("The resulting cache at the gateway")
-    gateway.cache.cache.sort(key = lambda x: len(x.encoding))
-    print(gateway.cache)
-    convert_cache_to_forest(gateway.cache.cache, None)
-    convert_cache_to_forest(server.cache.cache, None)
+    # print("The number of data recorded by the system")
+    # print(sensor.num_data_sent - sensor.data_queue.qsize())
+    # print("The resulting cache at the sensor")
+    # print(sensor.cache)
+    # print("The resulting tree(s) at the sensor")
+    # convert_cache_to_forest(sensor.cache.cache, None)
+    # print("The resulting cache at the gateway")
+    # gateway.cache.cache.sort(key = lambda x: len(x.encoding))
+    # print(gateway.cache)
+    # convert_cache_to_forest(gateway.cache.cache, None)
+    # convert_cache_to_forest(server.cache.cache, None)
 
 
     # print("Round Trip Times")
