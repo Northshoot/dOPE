@@ -9,9 +9,7 @@ Cache size          Inserts that Miss
     22                    19,397 
 --------------------------------------
     23                    17,093
---------------------------------------
-    24                    16,045
---------------------------------------
+-------------------------------------—
     25                    14,774
 --------------------------------------
     30                    11,961
@@ -38,3 +36,6 @@ Cache size          Inserts that Miss
 --------------------------------------
     90                    4,939
 
+
+Is it possible to frame cache sizing as follows:
+x % of total data set size needed in sensor cache for misses to be under y% of total inserts
