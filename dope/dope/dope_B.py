@@ -4,6 +4,7 @@ import time
 from functools import reduce
 from ..utils import print_ctrl
 from ..utils.printer import stats_string
+import matplotlib.pyplot as plt
 
 
 def dOPE_B(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
@@ -59,6 +60,12 @@ def dOPE_B(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
                 sensor.cache.logger.info(ret)
                 gateway.cache.logger.info(ret)
                 server.cache.logger.info(ret)
+                plt.plot(sensor.insert_round_trips)
+                plt.plot(sensor.rebalance_events, 'r')
+                plt.xlabel("Insert number")
+                plt.ylabel("Number of round trips")
+                plt.title("Dope round trips over inserts")
+                plt.show()
                 #print('Send message count: ' + str(sensor.send_message_count))
                 #print('Plaintexts who miss: ' + str(sensor.cache.plaintexts_who_miss))
 

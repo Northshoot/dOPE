@@ -92,17 +92,17 @@ if __name__ == "__main__":
         data_file = args.file
         if data_file is None:
            # data_file = 'data_sets/CRNS0101-05-2015-CA_Santa_Barbara_11_W.txt'
-            data_file = "CRNS0101-05-2015-MO_Chillicothe_22_ENE"
+            data_file = "data_sets/CRNS0101-05-2015-MO_Chillicothe_22_ENE.txt"
             #data_file = 'data_sets/CRNS0101-05-2008-KY_Bowling_Green_21_NNE
             # .txt'
 
     cacheLengthS = args.sensorcacheLength
     if cacheLengthS is None:
-        cacheLengthS = 20
+        cacheLengthS = 570
 
     cacheLengthG = args.gatewaycacheLength
     if cacheLengthG is None:
-        cacheLengthG = 100
+        cacheLengthG = 1000
 
     sys.exit(run(numTics, dataTics, networkTics, data_queue_len, distribution,
                  cacheLengthS, cacheLengthG, data_file=data_file))
