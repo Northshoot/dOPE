@@ -38,12 +38,13 @@ class dSensor_B(Tier):
         super(dSensor_B,self).__init__('Sensor',Communicator())
         self.data_gen = DataGenerator(distribution, bounds = [-1000,1000],
                                       data_file = data_file)
-        self.num_data_sent = 0
+        self.num_data_sent = 0 #coresponds to row number in the file
         self.num_gen = 0
         self.comp_req_queue = queue.Queue(1)
         self.data_queue = queue.Queue(data_queue_len)
         self.insert_round_trips = []
         self.cache = cache.CacheModel(cache_len, out_file, int(k/2))
+        # self.cache.priority_messages rebalance messages and cache miss
         self.done = False
         # For recording more precise dope statistics
         self.total_ciphers_sent = 0
@@ -108,6 +109,9 @@ class dSensor_B(Tier):
             message2send = self.cache.priority_messages.pop(0)
             if isinstance(message2send.entry, CacheEntryB):
                 self.total_ciphers_sent += 1
+            elif message2send.messageType == 'rebalance' \
+                and message2send.start_flag: #rebalance
+                    print("rebalance request line#: " +str(self.num_data_sent))
             self.communicator.send((message2send.entry, 
                                     message2send.start_flag,
                                     message2send.end_flag),
