@@ -27,13 +27,17 @@ class DataGenerator(object):
 
     @property
     def is_last(self):
-        return self.current == self.noaa_len -1
+        return self.current == 100
 
     def get_next(self):
         if self.distribution == 'random':
+            if self.is_last:
+                return None
             self.current += 1
             return random.randint(self.bounds[0], self.bounds[1])
         elif self.distribution == 'increasing':
+            if self.is_last:
+                return None
             self.current += 1
             return self.current
         elif self.distribution == 'uniform':

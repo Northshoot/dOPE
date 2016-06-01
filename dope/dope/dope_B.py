@@ -34,6 +34,7 @@ def dOPE_B(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
         if tic % dataTics == 0:
             sensor.generate_data()
             if sensor.done:
+                print(server.tree)
                 n_miss_inserts = len(gateway.num_traversals)
                 avg_traversals = reduce(lambda a, x: [a[0]+x[0], a[1]+x[1]], gateway.num_traversals, [0,0])
                 avg_traversals[0] /= n_miss_inserts
@@ -60,8 +61,8 @@ def dOPE_B(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
                 sensor.cache.logger.info(ret)
                 gateway.cache.logger.info(ret)
                 server.cache.logger.info(ret)
-                plt.plot(sensor.insert_round_trips)
-                plt.plot(sensor.rebalance_events, 'r')
+                plt.plot(sensor.insert_round_trips, 'b*-')
+                plt.plot(sensor.rebalance_events, 'r*-')
                 plt.xlabel("Insert number")
                 plt.ylabel("Number of round trips")
                 plt.title("Dope round trips over inserts")

@@ -98,11 +98,11 @@ if __name__ == "__main__":
 
     cacheLengthS = args.sensorcacheLength
     if cacheLengthS is None:
-        cacheLengthS = 570
+        cacheLengthS = 100
 
     cacheLengthG = args.gatewaycacheLength
     if cacheLengthG is None:
-        cacheLengthG = 1000
+        cacheLengthG = 100
 
     sys.exit(run(numTics, dataTics, networkTics, data_queue_len, distribution,
                  cacheLengthS, cacheLengthG, data_file=data_file))
