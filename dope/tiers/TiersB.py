@@ -43,6 +43,7 @@ class dSensor_B(Tier):
         self.comp_req_queue = queue.Queue(1)
         self.data_queue = queue.Queue(data_queue_len)
         self.insert_round_trips = []
+        self.miss_events = []
         self.rebalance_events = []
         self.cache = cache.CacheModel(cache_len, out_file, int(k/2))
         self.done = False
@@ -69,8 +70,9 @@ class dSensor_B(Tier):
             return
         if (len(self.cache.priority_messages) < 1 and not 
             self.cache.waiting_on_insert[0]):
-            self.insert_round_trips.append(1)
-            self.rebalance_events.append(1)
+            self.insert_round_trips.append(0)
+            self.rebalance_events.append(0)
+
             # If queue is not empty then pop one off
             if not self.data_queue.empty():
                 popped_ptext = self.data_queue.get_nowait()
@@ -84,7 +86,6 @@ class dSensor_B(Tier):
 
         # If sensor can't process immediately, enqueue 
         try:
-            self.insert_round_trips[-1] += 1
             self.cache.logger.debug("Insert blocking.  Number priority " +
                                    "messages outstanding: %d.\n "
                                    "Wating on insert: " 
@@ -105,12 +106,13 @@ class dSensor_B(Tier):
         along to the gateway
         '''
         self.send_message_count += 1
+        self.insert_round_trips[-1] += 1
         if len(self.cache.priority_messages) > 0:
-
             message2send = self.cache.priority_messages.pop(0)
+            print(message2send.messageType)
             if isinstance(message2send.entry, CacheEntryB):
                 self.total_ciphers_sent += 1
-            else:
+            if message2send.messageType == 'rebalance' and message2send.start_flag:
                 self.rebalance_events[-1] = 5
             self.communicator.send((message2send.entry, 
                                     message2send.start_flag,
