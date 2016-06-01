@@ -43,6 +43,7 @@ class dSensor_B(Tier):
         self.comp_req_queue = queue.Queue(1)
         self.data_queue = queue.Queue(data_queue_len)
         self.insert_round_trips = []
+        self.rebalance_events = []
         self.cache = cache.CacheModel(cache_len, out_file, int(k/2))
         # self.cache.priority_messages rebalance messages and cache miss
         self.done = False
@@ -69,7 +70,8 @@ class dSensor_B(Tier):
             return
         if (len(self.cache.priority_messages) < 1 and not 
             self.cache.waiting_on_insert[0]):
-            self.insert_round_trips.append(0)
+            self.insert_round_trips.append(1)
+            self.rebalance_events.append(1)
             # If queue is not empty then pop one off
             if not self.data_queue.empty():
                 popped_ptext = self.data_queue.get_nowait()
@@ -109,9 +111,14 @@ class dSensor_B(Tier):
             message2send = self.cache.priority_messages.pop(0)
             if isinstance(message2send.entry, CacheEntryB):
                 self.total_ciphers_sent += 1
+<<<<<<< HEAD
             elif message2send.messageType == 'rebalance' \
                 and message2send.start_flag: #rebalance
                     print("rebalance request line#: " +str(self.num_data_sent))
+=======
+            else:
+                self.rebalance_events[-1] = 5
+>>>>>>> 08bd4b8c64d5bff1c608a35ab4d0e512bc5dc80a
             self.communicator.send((message2send.entry, 
                                     message2send.start_flag,
                                     message2send.end_flag),
