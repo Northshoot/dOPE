@@ -9,17 +9,19 @@ from ..utils import print_ctrl
 
 __author__ = 'WDaviau'
 
+
 class Tier(object):
     '''
     IoT Tier Class
     '''
-    def __init__(self,space,comm,comm2=None):
+
+    def __init__(self, space, comm, comm2=None):
         self.space = space
         self.communicator = comm
         # only the gateway needs two communication channnels
         self.communicator2 = comm2
 
-    def link(self,other_tier,other_tier2=None):
+    def link(self, other_tier, other_tier2=None):
         self.communicator.connect(other_tier.communicator)
         other_tier.communicator.connect(self.communicator)
         if self.communicator2 is not None:
@@ -30,14 +32,16 @@ class Tier(object):
 class dSensor_B(Tier):
     '''
     Sensor class in dOPE hierarchy.  Equipped to generate data and
-    insert into the encoding cache or enqueue / drop data if inserts 
+    insert into the encoding cache or enqueue / drop data if inserts
     are blocking and to send rebalance, insert, evict and sync messages
     as well as to receive insert response messages.
     '''
+
     def __init__(self, data_queue_len, distribution, cache_len, out_file, k, data_file, num_data):
         super(dSensor_B,self).__init__('Sensor',Communicator())
         self.data_gen = DataGenerator(distribution, bounds = [-500,500],
                                       data_file = data_file, data_num = num_data)
+
         self.num_data_sent = 0
         self.num_gen = 0
         self.comp_req_queue = queue.Queue(1)
@@ -45,7 +49,7 @@ class dSensor_B(Tier):
         self.insert_round_trips = []
         self.miss_events = []
         self.rebalance_events = []
-        self.cache = cache.CacheModel(cache_len, out_file, int(k/2))
+        self.cache = cache.CacheModel(cache_len, out_file, int(k / 2))
         self.done = False
         # For recording more precise dope statistics
         self.total_ciphers_sent = 0
@@ -61,14 +65,14 @@ class dSensor_B(Tier):
         Take the next data point from the data model set at init.
         Either insert, pipe data through the queue or drop
         '''
-        # Enqueue data for low priority sending 
+        # Enqueue data for low priority sending
         self.num_gen += 1
         plaintxt = self.data_gen.get_next()
         if plaintxt is None and self.data_queue.empty():
             self.done = True
             return
-        if (len(self.cache.priority_messages) < 1 and not 
-            self.cache.waiting_on_insert[0]):
+        if (len(self.cache.priority_messages) < 1 and not
+        self.cache.waiting_on_insert[0]):
             self.insert_round_trips.append(0)
             self.rebalance_events.append(0)
 
@@ -83,13 +87,13 @@ class dSensor_B(Tier):
             self.num_data_sent += 1
             return
 
-        # If sensor can't process immediately, enqueue 
+        # If sensor can't process immediately, enqueue
         try:
             self.cache.logger.debug("Insert blocking.  Number priority " +
-                                   "messages outstanding: %d.\n "
-                                   "Wating on insert: " 
-                                   + str(self.cache.waiting_on_insert[0]),
-                                   len(self.cache.priority_messages))
+                                    "messages outstanding: %d.\n "
+                                    "Wating on insert: "
+                                    + str(self.cache.waiting_on_insert[0]),
+                                    len(self.cache.priority_messages))
             if plaintxt is not None:
                 self.data_queue.put_nowait(plaintxt)
                 self.num_data_sent += 1
@@ -101,7 +105,7 @@ class dSensor_B(Tier):
     def send_message(self):
         ''' Method send_message
         -------------------------
-        If a message is available from the cache to send then pass 
+        If a message is available from the cache to send then pass
         along to the gateway
         '''
         self.send_message_count += 1
@@ -112,7 +116,7 @@ class dSensor_B(Tier):
                 self.total_ciphers_sent += 1
             if message2send.messageType == 'rebalance' and message2send.start_flag:
                 self.rebalance_events[-1] = 5
-            self.communicator.send((message2send.entry, 
+            self.communicator.send((message2send.entry,
                                     message2send.start_flag,
                                     message2send.end_flag),
                                    message2send.messageType)
@@ -120,12 +124,14 @@ class dSensor_B(Tier):
             message2send = self.cache.sync_messages.pop(0)
             if message2send.messageType == 'sync':
                 self.total_ciphers_sent += 1
+
                 self.cache.logger.debug("Trying to sync entry with encoding " + str(message2send.entry.node_encoding))
                 self.cache.acknowledge_sync(message2send.entry.node_encoding, 
+
                                             message2send.entry.node_index)
             else:
                 self.total_repeats_sent += 1
-            self.communicator.send((message2send.entry, False, False, 
+            self.communicator.send((message2send.entry, False, False,
                                     message2send.timestamp),
                                    message2send.messageType)
 
@@ -143,7 +149,7 @@ class dSensor_B(Tier):
         else:
             # continue inserted where we left off
             waiting, encoding, plaintxt = self.cache.waiting_on_insert
-            assert(waiting)
+            assert (waiting)
             node = packet.data[0]
             self.total_ciphers_received += len(node)
             self.avg_msg_size.append(len(node))
@@ -160,17 +166,19 @@ class dGateway_B(Tier):
     '''
     Gateway class in dOPE heirarchy.  Intermediary between Sensor and
     Server.  Forwards sync messages, propogates evictions when cache is
-    full, pushes rebalance messages through to server and flushes 
+    full, pushes rebalance messages through to server and flushes
     cache, responds to insert messages querying server if necessary
     '''
-    def __init__(self, out_file, cache_len = 1000, k=5):
-        super(dGateway_B,self).__init__('Gateway', Communicator(), Communicator())
+
+    def __init__(self, out_file, cache_len=1000, k=5):
+        super(dGateway_B, self).__init__('Gateway', Communicator(),
+                                         Communicator())
         self.rebalance_received = []
         self.rebalance2send = []
         self.rebalance_root_enc = None
         self.sensor_msg2send = None
         self.server_msg2send = None
-        self.cache = cache.CacheModel(cache_len, out_file, int(k/2))
+        self.cache = cache.CacheModel(cache_len, out_file, int(k / 2))
         self.sensor_message_count = 0
         self.sync_count = 0
         self.rebal_count = 0
@@ -202,23 +210,25 @@ class dGateway_B(Tier):
                                     self.server_msg2send.messageType)
             self.server_msg2send = None
         elif len(self.rebalance2send) > 0:
-            
+
             rebalance_msg = self.rebalance2send.pop(0)
             self.communicator2.send((rebalance_msg.entry,
                                      rebalance_msg.start_flag,
                                      rebalance_msg.end_flag),
                                     rebalance_msg.messageType)
             self.cache.logger.debug("Sending rebalance request with cipher: " +
-                                   str(rebalance_msg.entry.cipher_text) + 
-                                   " to server")
+                                    str(rebalance_msg.entry.cipher_text) +
+                                    " to server")
         elif len(self.cache.sync_messages) > 0:
             self.cloud_message_count += 1
             self.cache.logger.debug("Sending delayed sync to server")
             sync_msg = self.cache.sync_messages.pop(0)
             if sync_msg.messageType == 'sync':
-                self.cache.acknowledge_sync(sync_msg.entry.node_encoding, sync_msg.entry.node_index)
+                self.cache.acknowledge_sync(sync_msg.entry.node_encoding,
+                                            sync_msg.entry.node_index)
             self.communicator2.send((sync_msg.entry, sync_msg.start_flag,
-                                     sync_msg.end_flag, sync_msg.timestamp), sync_msg.messageType)
+                                     sync_msg.end_flag, sync_msg.timestamp),
+                                    sync_msg.messageType)
 
     def receive_sensor_message(self):
         ''' Method receive_message
@@ -240,20 +250,20 @@ class dGateway_B(Tier):
             end_flag = packet.data[2]
             send_entry = copy.deepcopy(entry)
 
-
             if packet.call_type == 'insert':
                 if not self.ongoing_traversal:
                     # Record new traversal
                     self.ongoing_traversal = True
-                    self.num_traversals.append([0,0])
+                    self.num_traversals.append([0, 0])
                 self.miss_count += 1
-                self.cache.logger.debug("Receiving miss request for encoding: " + str(entry))
+                self.cache.logger.debug(
+                    "Receiving miss request for encoding: " + str(entry))
                 encoding = entry
                 msg = self.cache.insert_request(encoding)
                 if msg is None:
                     self.num_traversals[-1][0] += 1
-                    self.server_msg2send = OutgoingMessageB('insert', 
-                                                           send_entry)
+                    self.server_msg2send = OutgoingMessageB('insert',
+                                                            send_entry)
                 else:
                     self.num_traversals[-1][1] += 1
                     self.sensor_msg2send = msg
@@ -264,9 +274,9 @@ class dGateway_B(Tier):
                 self.cache.logger.debug('Receiving rebalance request')
                 if start_flag:
                     self.cache.logger.debug("First in a possible series of " +
-                                           "rebalance requests")
-                    assert(self.rebalance_received == [] and 
-                           self.rebalance_root_enc is None)
+                                            "rebalance requests")
+                    assert (self.rebalance_received == [] and
+                            self.rebalance_root_enc is None)
 
                     self.rebalance_root_enc = entry
                 if not start_flag:
@@ -274,30 +284,33 @@ class dGateway_B(Tier):
                 if end_flag:
 
                     self.cache.logger.debug("Last rebalance request of the " +
-                                           "series")
-                    self.rebalance2send = self.cache.rebalance_flush(self.rebalance_root_enc)
+                                            "series")
+                    self.rebalance2send = self.cache.rebalance_flush(
+                        self.rebalance_root_enc)
 
-                    del(self.rebalance2send[0]) # Root encoding already sent
-                    self.rebalance_received = [] 
+                    del (self.rebalance2send[0])  # Root encoding already sent
+                    self.rebalance_received = []
                     self.rebalance_root_enc = None
                     if len(self.rebalance2send) > 0:
-                        self.cache.logger.debug("Sending rebalances from "+ 
-                                               "this hierarchy")
+                        self.cache.logger.debug("Sending rebalances from " +
+                                                "this hierarchy")
                         end_flag = False
-                self.server_msg2send = OutgoingMessageB(packet.call_type, send_entry,
+                self.server_msg2send = OutgoingMessageB(packet.call_type,
+                                                        send_entry,
                                                         start_flag=start_flag,
                                                         end_flag=end_flag)
-                
+
             elif packet.call_type == 'eviction':
                 self.ongoing_traversal = False
                 self.evict_count += 1
                 self.cache.logger('Receiving evicted entry')
                 entry = packet.data[0]
-                assert(self.cache._entry_with_encoding(entry.node_encoding, entry.node_index) is None)
+                assert (self.cache._entry_with_encoding(entry.node_encoding,
+                                                        entry.node_index) is None)
                 self.cache.merge_new([entry])
                 if len(self.cache.priority_messages) > 0:
                     self.server_msg2send = self.cache.priority_messages.pop(0)
-                    assert(self.cache.priority_messages == [])
+                    assert (self.cache.priority_messages == [])
                 else:
                     # Propogate eviction
                     self.server_msg2send = OutgoingMessageB(packet.call_type,
@@ -305,7 +318,7 @@ class dGateway_B(Tier):
             elif packet.call_type == 'sync':
                 self.ongoing_traversal = False
                 self.sync_count += 1
-                self.cache.logger.debug("Receiving sync message with cipher: " + 
+                self.cache.logger.debug("Receiving sync message with cipher: " +
                                         str(packet.data[0].cipher_text))
                 entry = packet.data[0]
                 self.cache.logger.debug("Pre merge")
@@ -313,18 +326,21 @@ class dGateway_B(Tier):
                 self.cache.merge_new([entry])
                 if len(self.cache.priority_messages) > 0:
                     self.server_msg2send = self.cache.priority_messages.pop(0)
-                    assert(self.cache.priority_messages == [])
+                    assert (self.cache.priority_messages == [])
                 self.cache.sync_messages.append(OutgoingMessageB('sync',
-                                                send_entry))
+                                                                 send_entry))
             elif packet.call_type == 'sync_repeat':
                 self.ongoing_traversal = False
-                self.cache.logger.debug("Receiving sync repeat with encoding " + str(packet.data[0]))
-                assert(self.cache.priority_messages == [])
-                self.cache.sync_messages.append(OutgoingMessageB('sync_repeat', send_entry))
+                self.cache.logger.debug(
+                    "Receiving sync repeat with encoding " + str(
+                        packet.data[0]))
+                assert (self.cache.priority_messages == [])
+                self.cache.sync_messages.append(
+                    OutgoingMessageB('sync_repeat', send_entry))
             else:
-                self.cache.logger.error("Packet of call type " + 
+                self.cache.logger.error("Packet of call type " +
                                         packet.call_type + " received")
-                                      
+
                 raise ValueError("Unrecognized packet type sent to gateway")
 
     def receive_server_message(self):
@@ -353,12 +369,13 @@ class dGateway_B(Tier):
 
 class dServer_B(Tier):
     '''
-    Server class in dOPE hierarchy.  Equipped to receive insert, 
-    eviction, rebalance and sync messages and to send back insert 
+    Server class in dOPE hierarchy.  Equipped to receive insert,
+    eviction, rebalance and sync messages and to send back insert
     replies.
     '''
+
     def __init__(self, out_file, k):
-        super(dServer_B,self).__init__('Server',Communicator())
+        super(dServer_B, self).__init__('Server', Communicator())
         self.rebalance_entries = []
         self.root_enc = None
         self.message2send = None
@@ -369,12 +386,12 @@ class dServer_B(Tier):
     def send_message(self):
         ''' Method send_message
         -----------------------
-        If a message is availabe from the cache pass along to the 
+        If a message is availabe from the cache pass along to the
         sensor
         '''
         # Check if there is a message to send
         if self.message2send is not None:
-            self.communicator.send(self.message2send.entry, 
+            self.communicator.send(self.message2send.entry,
                                    self.message2send.messageType)
             self.message2send = None
 
@@ -385,8 +402,8 @@ class dServer_B(Tier):
         '''
         node = self.tree.node_at_enc(encoding)
         if node is None:
-            raise(ValueError("Server should have record of every cipher"))
-        entries2send = [CacheEntryB(key, encoding, i, 0) for i,key in 
+            raise (ValueError("Server should have record of every cipher"))
+        entries2send = [CacheEntryB(key, encoding, i, 0) for i, key in
                         enumerate(node.keys)]
         for entry in entries2send:
             self.cache.logger.debug(str(entry))
@@ -402,22 +419,22 @@ class dServer_B(Tier):
         '''
         if start_flag:
             self.cache.logger.debug("First in a possible series of " +
-                                       "rebalance requests")
+                                    "rebalance requests")
             if self.rebalance_entries != [] or self.root_enc is not None:
-                self.cache.logger.debug("Rebalance Entries: " + 
-                                       str(self.rebalance_entries))
-            assert(self.rebalance_entries == [] and self.root_enc is None)
+                self.cache.logger.debug("Rebalance Entries: " +
+                                        str(self.rebalance_entries))
+            assert (self.rebalance_entries == [] and self.root_enc is None)
             # Initial rebalance entry is the root encoding
             self.root_enc = entry
             self.cache.logger.debug("Rebalance encoding" + str(self.root_enc))
         if not start_flag:
-            self.cache.logger.debug("Rebalance cipher: " + 
-                                   str(entry.cipher_text))
+            self.cache.logger.debug("Rebalance cipher: " +
+                                    str(entry.cipher_text))
             entry.synced = True
             self.rebalance_entries.append(entry)
         if end_flag:
             self.cache.logger.debug("Last rebalance request with cipher " +
-                                   str(entry.cipher_text) )
+                                    str(entry.cipher_text))
             # Insert rebalance entries and trigger a split child at root enc
             for entry in self.rebalance_entries:
                 self.tree.insert_direct(entry.cipher_text, entry.node_encoding,
@@ -426,23 +443,21 @@ class dServer_B(Tier):
             self.root_enc = None
             self.rebalance_entries = []
 
-
-
     def receive_message(self):
         ''' Method receive_message
         --------------------------
-        If a message is sent from the sensor process and change state 
+        If a message is sent from the sensor process and change state
         at the gateway
         '''
         ## For debugging check for unique ciphers
-        #assert(self.cache._unique_ciphers())
-        #assert(self.cache._ordered())
+        # assert(self.cache._unique_ciphers())
+        # assert(self.cache._ordered())
         ## END DEBUG
 
         packet = self.communicator.read()
         if packet is None:
             return
-        else: 
+        else:
             entry = packet.data[0]
             start_flag = packet.data[1]
             end_flag = packet.data[2]
@@ -452,13 +467,13 @@ class dServer_B(Tier):
             encoding = entry
             self.handle_insert(encoding)
             self.cache.logger.debug(str(self.tree))
-            
+
         elif packet.call_type == "rebalance":
             self.cache.logger.debug("Receiving rebalance request")
             self.handle_rebalance(entry, start_flag, end_flag)
             self.cache.logger.debug(str(self.tree))
 
-            
+
         elif packet.call_type == "evict":
             self.cache.logger.debug("Receiving evicted entry")
             entry.synced = True
@@ -466,8 +481,8 @@ class dServer_B(Tier):
             self.tree.insert_direct(entry.cipher_text, entry.node_encoding,
                                     entry.node_index)
         elif packet.call_type == "sync":
-            self.cache.logger.debug("Receiving sync message with cipher: " + 
-                                   str(packet.data[0].cipher_text))
+            self.cache.logger.debug("Receiving sync message with cipher: " +
+                                    str(packet.data[0].cipher_text))
             entry.synced = True
             # Do an insert into the B tree
             self.tree.insert_direct(entry.cipher_text, entry.node_encoding,
@@ -475,11 +490,12 @@ class dServer_B(Tier):
             self.cache.logger.debug(str(self.tree))
         elif packet.call_type == "sync_repeat":
             self.cache.logger.debug("Receiving sync repeat with encoding: " +
-                                    str(packet.data[0]) + " at time " + str(packet.data[3]))
+                                    str(packet.data[0]) + " at time " + str(
+                packet.data[3]))
             self.repeat_count += 1
 
         else:
-            self.cache.logger.error("Packet of call type %s received", 
+            self.cache.logger.error("Packet of call type %s received",
                                     packet.call_type)
             raise ValueError("Unrecognized packet type sent to server")
 
