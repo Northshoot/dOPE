@@ -1,0 +1,212 @@
+\documentclass[12pt]{article}
+\usepackage{url,graphicx,tabularx,array,geometry,amsmath,listings,verbatim}
+\setlength{\parskip}{1ex} %--skip lines between paragraphs
+\setlength{\parindent}{0pt} %--don't indent paragraphs
+
+%-- Commands for header
+\renewcommand{\title}[1]{\textbf{#1}\\}
+\renewcommand{\line}{\begin{tabularx}{\textwidth}{X>{\raggedleft}X}\hline\\\end{tabularx}\\[-0.5cm]}
+\newcommand{\leftright}[2]{\begin{tabularx}{\textwidth}{X>{\raggedleft}X}#1%
+& #2\\\end{tabularx}\\[-0.5cm]}
+
+%\linespread{2} %-- Uncomment for Double Space
+\begin{document}
+
+\title{dOPE Report Autumn 2016}
+\line
+\leftright{\today}{Wyatt Daviau} %-- left and right positions in the header
+
+\section{Introduction}
+
+The Introduction is not yet written.  I am currently using this space to keep track of the biggest obstacles preventing dOPE from making a significant contribution along with the proposed paths towards overcoming these obstacles.  I am at times being overly critical for the sake of anticipating negative feedback and steering the project in the best direction.
+
+\begin{itemize}
+\item
+Obstacle: The dOPE implementation is too slow to make meaningful time comparisons with Talos
+
+Moving Forward 1: We know where the bottleneck is, it is in the fragmentation of the BLE dOPE service.  So far it is proving difficult to find a solution on the current BLE stack.  If we could find a way to stream data over BLE we can fix the prototype and begin testing again for further unseen bottlenecks, and likely get within Talos's range.
+
+Moving Forward 2: We could change our evaluation metric to not include measuring end to end time of dOPE messages.  This is unideal because this is the most straightforward way to compare with the related work
+
+Moving Forward 3: We could move to another embedded device for the prototype.  This is unideal because we have a slow but working prototype on BLE, and it might take a significant amount of work to move the implementation over to another space.
+
+\item
+Obstacle: dOPE is not particularly well motivated
+
+Crypt DB has implementations
+
+Moving Forward 1: Up until now I would argue that we haven't found a killer application that solves a relatively known and important problem by speeding up order preserving encryption in distributed IoT systems.  
+
+I proposed an example involving exercise earlier this summer but it was specific enough to feel contrived.  To think of an application we can focus on situations where people care about keeping data secret but want to perform many many comparison operations on these data.  Healthcare data might be a place to explore further.  For a really convincing example we should be able to show that in the example setting the gateway is obviously untrusted.
+
+Moving Forward 2: Maybe dOPE doesn't solve a problem directly but can be argued to be part of a toolchain for helping defend people in depth as part of an efficient CryptDB like onion scheme that is not too slow on embedded devices.  Maybe we should start considering dOPE to be a small part of Ravel or some other general IoT framework, and think about it as contributing to such a system.
+
+\item
+Obstacle: As it stands dOPE is not especially novel
+
+Moving Forward: There is a lot of fruit down this direction.  We could begin by doing smarter rebalances, which I hypothesize would give us the biggest reduction in message overhead.  We can proceed to cache leaves in certain instances where we appear to be dealing with a working set bigger than memory to mitigate the very bad worst case.   We can play with caching the leaves at all times, one of the original suggestions for the protocol.  We can extend the protocol so that it takes on different properties for different datasets.  We can begin by having dOPE take some measure of locality or range and running with different $k$-values (smaller $k$ for less local data)
+
+\item 
+Obstacle: dOPE's gains over mOPE may not be considered significant
+
+Moving Forward: My suspicion is that following the inclusion of smarter rebalances we will see improvement in dOPE that will make up the difference between our current advantage and a ``significant" advantage.
+
+\end{itemize} 
+
+
+\section{Related work}
+
+The related work is not yet written.  At the very least it will explain, mOPE and Talos and probably some cryptdb.
+
+\section{Description of the protocol}
+The dOPE protocol is a simple extension of mOPE suitable for a distributed architecture.  Central to mOPE is an encoding tree datastructure which encodes the relative ordering of ciphertexts revealing only the ordering.  The order of a ciphertext in the data structure is encoded in the ciphertexts' position in the tree.  Considering the simple case where ciphertexts are stored in a binary tree, the encoding tree is simply a BST with the ciphertext values inserted in the plaintext order.
+
+dOPE is an effort to extend this idea efficiently to IoT applications where ciphertexts are encrypted with keys located on the embedded device.  The protocol maintains three views of the encoding tree, smaller partial views of the tree on the embedded device and the gateway and the complete tree on the cloud where all of the data is stored.
+
+dOPE is applicable in situations where a sensitive data stream is incident on the embedded device which is designed to transport the data via an internet gateway, such as a smart phone, to a far-flung database.  The protocol begins by searching for the position at which the value belongs in the encoding tree based on its plaintext value.  To do this the embedded device searches through a cached region of the encoding tree, its "view" of the data structure.  This is done in a manner similar to mOPE insertion but with some key differences.  The search begins at the root, but because the embedded device maintains nodes of the tree in its cache, the embedded device need not request each node from the cloud.  Should a node along the traversal path not exist in the embedded device's cached view of the tree a MISS message is sent to the gateway, as described below in more detail.  The nodes of the tree are traversed until either the value being inserted is found at an existing node in the encoding tree or a leaf node of the encoding tree is found.  In the case that the value already exists in the encoding tree dOPE now has an order preserving encryption of this value and the ciphertext at this node can be timestamped and sent along to the gateway for recording in the database.  In the case that the traversal reaches a leaf node the protocol oversees an insertion procedure specific to the tree implementation and then updates the tree data structure across the distributed system.  The B-Tree implementation specific leaf insertion is described in more detail in the protocol implementation section.  To update the tree the protocol encrypts the previously unseen value using any deterministic encryption scheme, such as AES CBC.  In most cases at this point the new ciphertext's place in the encoding tree is then sent to the gateway and cloud for synchronization of the global datastructure.  This procedure is described in further detail in the SYNC section.  Sometimes the insertion of this new ciphertext causes the tree to become unbalanced, again in a way determined by the particular implementation of the encoding tree datastructure.  In this case dOPE signals the other members of distributed system with a REBALANCE message containing the necessary information to rebalance the tree and flushes the embedded device's cache.  This procedure is described in more detail in the REBALANCE section below.
+
+Whether the values at the tree nodes stored in the embedded cache are kept in plaintext or encrypted is a question of an efficiency and security tradeoff.  Although both approaches are compatible with the encoding tree traversal, because the keys are stored on the embedded device it seems like a waste of computing power to decrypt each node at every traversal for effectively no security gains.
+
+Both the embedded device and the gateway routinely cache items as part of the protocol.  Currently dOPE uses LRU replacement to decide which items to evict from these caches when they become full.  Note that although traversal in the embedded device tends to keep paths of the tree in the cache, in general unconnected parts of the tree will reside in the cache.  Although no traversal occurs leading up to insertion in the gateway a similar phenomenon occurs because missing elements along the insertion path are cached at the gateway while handling MISS messages, and SYNC messages are similarly cached.
+
+\subsection{MISS}
+When a tree traversal hits a node that is not in the embedded device's cache it must query other parts of the system for the ciphertext at this position.  To prevent race conditions the protocol suspends encrypting values from the stream of incoming data at this point and waits for information from the gateway.  Upon receiving the ciphertext at this node the protocol decrypts to allow for comparison and continues the traversal.
+
+The dOPE client running on the gateway listens for MISS messages and responds by searching its view of the encoding tree for a ciphertext at the node that the embedded device is looking for.  If it finds this ciphertext the gateway immediately passes it back to the embedded device.  If this ciphertext is also missing from the embedded device's cache then it will send a MISS message to the dOPE agent in the cloud.  Because all of the data is stored here the gateway will always receive back a response, cache the message itself, and then forward the response on back to the embedded device.
+
+\subsection{SYNC}
+When a new node is inserted into the encoding tree at the embedded device it needs to ensure that this information gets propagated throughout the distributed system.  To do this the device sends a SYNC message containing the ciphertext and its associated encoding to the gateway, where the ciphertext is cached.  The gateway forwards this up to the cloud, where the ciphertext encoding pair are stored in a database.
+
+\subsection{REBALANCE}
+The REBALANCE message is sent from the embedded device to the gateway and includes the new ciphertext that triggered the rebalance along with its decoding.  Instead of providing information about how to rebalance the embedded device can trust that the higher tiers of the system can do this adequately based on their more complete knowledge of the encoding tree.  In the simplest, currently implemented case the dOPE embedded device flushes its cache after sending the REBALANCE message and the gateway simply propagates the message to the cloud and flushes its own cache.  The cloud recomputes the rebalanced tree.  In the traversal following a rebalance the embedded and gateway caches cold miss each node of the tree, effectively bringing dOPE back to mOPE style overhead.
+
+\section{Methods}
+
+\subsection{Simulation Implementation}
+We used simulation methods originally to understand dOPE's relative performance compared with mOPE.  We built a simulation framework for each protocol that simulated the transfer of data from an embedded device through a gateway to a server.  Each device was simulated as a python class.  During simulation statistics are recorded to, for example, measure how many message round trips in total are required to move a given number of data points from a given dataset from the embedded device to the server.  Our simulates set the encoding tree datastructure to a B-Tree in order to keep the implementation internals the same as the those of mOPE in the original paper and its extensions (Talos).  The $k$ value of the tree can be set as a parameter when running the simulations.  
+
+Internally the simulations for mOPE and dOPE consist of a simple event loop.  Each iteration of the loop consists of a ``tic" in the simulation.  To make the framework somewhat general we allowed the ``data\_tic" and ``network\_tic" parameters,  indicating how many tics it takes for new data to arrive and for a message to be sent over the network respectively, to be passed in for individual runs.  In practice we set both parameters to 1 tic.
+
+On each data tic the simulation event loop instructs the sensor to generate data, which the sensor enqueues for processing by the mOPE and dOPE protocols.  On each network tic the three tiers send their communications.  The type of data generated can be set by the distribution parameter passed to the simulation run.  Both simulations support taking floating point or integer data drawn from an interval of $[n m]$.  Typically we used $n = -m$.  Additionally the simulation supports sequentially increasing data.  Finally the simulation is configured to take in distributions of data read in from text files.  We used temperature data from the NOAA's online records to evaluate the simulations on actual data gathered from real sensors.
+
+The mOPE simulation simulates the order preserving encrypting of a new data point by having the different device objects communicate as they would in the mOPE protocol.  The sensor object passes messages querying for the ciphertext at a provided encoding through its gateway to its cloud object.  The cloud object returns messages to the sensor with simulated ciphertexts which the sensor object uses to determine the direction of the continued traversal along the encoding tree at the server.  When an encoding not yet in the tree is reached, or a ciphertext along the cloud tree's path equals the ciphertext to be inserted, the server object completes the insertion.  The simulation uses proper B-Tree semantics for correct insertions and rebalances into the data structure.
+
+The dOPE simulation shares some structure, the sensor, gateway and server objects communicate with each other by passing messages.  However the message passing scheme and tree traversal in the simulations now follow the dOPE protocol.  The dOPE Cache model class is responsible for the behavior of the cache at the sensor.  Nodes of the encoding tree consist of the ciphertext value, the encoding value, two boolean flags, one true if the node has been synced with the gateway and one true if the current node is a leaf in the encoding tree, and an lru tag for making eviction decisions.  The maximum length of the sensor and gateway objects' caches are two parameters passed into each simulation.  Along with datastuctures storing the nodes of the encoding tree and their associated metadata, the dOPE Cache class also contains logic for traversing the tree, handling misses by enqueueing MISS, SYNC and REBALANCE messages to be sent to the gateway, and handling evictions.  The gateway object keeps a list of cache elements and the logic to perform the necessary forwarding of nodes received in SYNC messages, as well as handling MISS requests by searching its own cache or passing messages to the server object and sending messages back to the sensor object.  The server object maintains encoding tree with the same B-Tree data structure  used in the mOPE simulations, updating the tree's values upon receiving SYNC messages from the gateway object and using the global view of the encoding tree to respond to MISS queries.
+
+\subsection{dOPE mOPE comparison / varying k}
+We investigated how the simulation of each protocol performed in terms of the number of total messages sent out from the embedded device to the gateway, which we expected to be the bottleneck link.  We chose 3 distributions with different characteristics to get a better sense of the properties effect the protocols in different ways.  We generated data drawn at random from the interval [-500, 500], as well as sequentially increasing data and data captured from NOAA temperture data sets.  These distributions have differences in locality, range, and repeat frequency.  We then swept these trials for different $k$ values, to investigate how this changed relative performance of the mOPE and dOPE.  Several statistics were recorded, including the total message count, the breakdown of which types of messages, the number of ciphertexts transferred between objects, the average number of ciphertexts per message, and the average number of round trips to insert a message.
+
+\subsection{dOPE Cache Size Sweep / Thrashing}
+With the simulation framework we were able to quickly change parameters.  We ran another sweep .  
+
+One such sweep was performed to get a better look at the response of dOPE on the cache size.  For $k=10$ we ran the dOPE simulation on cache sizes of 18 through 23 in steps of 1, and cache sizes of 25 through 90 in steps of 5.  We then recorded how many inserts led to a cache miss and expressed this as a percentage of the total number of inserts performed over the data set.  We used the NOAA dataset to get an understanding for the cache sweep in terms of real world data.
+
+ 
+\subsection{Prototype Implementation}
+TODO: Read this code and describe it better. 
+
+The protocol is implemented in a prototype using as an embedded device an nRF DK communicating over BLE with an Android smart phone acting as a gateway which in turn communicates over the internet with an effective ``cloud", a Django server on a local laptop.  
+
+Embedded Device
+At this stage no encryption in the prototype to make correctness evaluation simpler, and to focus on timing of messages to calculate overhead.
+
+We use a BLE service to implement the functionality of the dOPE protocol.  
+
+The prototype uses ``quite a lot" of memory
+
+The prototype takes in stream data from either memory or a counter
+
+Currently using linked lists (dynamic memory) as output queues 
+
+Gateway
+
+The gateway is an android app that communicates with the dOPE BLE service.  It maintains a simple in memory cache of the dOPE tree and listens for syncs, rebalances and miss messages.  It is basically a big forwarder, forwarding information from the embedded tier to the cloud and occasionally acting as a cache when the embedded device misses
+
+Cloud
+
+Simple Django application.  Not too much to say about it
+
+
+To demonstrate that dOPE can be used in real IoT systems I prototyped a simple system and hacked the dOPE protocol onto its different parts.  Specifically I used an nRF52 DK for the embedded device, an Android phone for the gateway and my personal laptop computer running a django database to serve as the effective "cloud."  
+
+In the prototype the embedded device generates data from a data set stored in memory or from an incrementing counter.  Data collection is simulated to occur at a fixed frequency (of?) and then inserted into the BLE dOPE service which handles encryption, and the dOPE protocol outlined above.  An Android device running a dOPE protocol client listens for the customized dOPE BLE service, through which it exchanges data with the embedded device.  The phone in turn communicates with the prototyped cloud service on the personal laptop over the internet.
+
+To verify that the protocol was actually working I began by leaving the data unencrypted before sending them off of the embedded device.  I then looked through the Django database to make sure that 
+1. All the data were sent and encoded and 
+2. That all of the data were encoded in the correct part of the tree.
+
+For the second check I could just run a simple script (or inspect visually) to make sure that the dataset provided to the embedded device was completely copied over to the database.  The first check required sorting the database entries by encoding and then checking that this also led to ordering entries by value.
+
+(Automate this process, increase amount of data (Would require a better implemented system that runs faster))
+\subsection{Profiling Message Latency}
+To get a sense for the speed with which the prototype could process data I set up a timing experiment to record the end-to-end time it took for data to go from being recorded on the embedded device to being inserted into the database on the laptop.  To accomplish this I had the embedded application deliver a message over USB to the laptop containing the database.  Upon receiving this signal the laptop recorded a timestamp.  The laptop also recorded the timestamp at which the database saw the data inserted.  By comparing the two timestamps a timeseries of dOPE's latency was established over the two datasets under consideration.
+
+\section{Results}
+
+\includegraphics[scale=0.6]{cache_messages.pdf}
+
+One simulation result to include is the figure of the cache sweep over cache size
+\includegraphics[scale=0.6]{cache_sweep.pdf}
+
+
+The Sequential sweep
+\includegraphics[scale=0.6]{sequential_proto_time.png}
+
+The NOAA sweep
+\includegraphics[scale=0.6]{NOAA_proto_time.png}
+
+\includegraphics[scale=0.5]{MissTime.png}
+The time for a miss message to move from cloud to embedded device
+
+The simulation predicts this distribution of miss message sizes across the NOAA dataset, providing a rough expected value of 4.5 per miss message.  The cold misses following a rebalance take between 4000 and 6000.  Say the NOAA tree has 3 levels,  then thats roughly 3 * 800ms = 2400 ms delay for that miss.  This is in the right neighborhood and we can make up for it by investigating further what the height of the tree and the size of the relative missed nodes are at different times in the sequence.  If two nodes along the path are full this becomes 3200 + 800 = 4000. This also explains the general upward trend in delay time following rebalances.  You can also roughly see the different levels, that is when we get lucky and have a cold miss that hits the root 
+\includegraphics[scale=0.5]{MissDistribution.png}
+
+
+
+\section{Discussion}
+\subsection{Simulation dOPE mOPE Comparison}
+TODO: describe exactly what we are seeing in more detail.  We see about the same performance on random using dOPE and mOPE, we see a solid improvement on the sequential data set.  We see modest improvement on the NOAA temperature dataset.  Recall that from runs last spring we saw NOAA with an approximately 3 x performance gain over mOPE
+
+The results of the simulation show promise in dOPE's ability to outperform mOPE in terms of the number of message round trips that need to be exchanged between devices for the protocol to work.  The reason behind this is very intuitive, by caching the parts of the encoding tree 
+
+Talk about trade offs between locality and efficiency and the size of B-tree blocks.  (this is a smart place to start doing simple parameterizations, kind of hard to do dynamic memory allocation on the embedded device however)
+
+Talk about the problem of over rebalancing especially as seen in the sequential data set and how it could possibly be remedied with smarter flushing of the cache (eventually we are always going to need to be hit).  Also doing miss requests in batches is a neat idea.
+
+\subsection{Simulation Thrashing Analysis}
+As expected dOPE performs well with a bigger cache.  In the limit where the cache is the size of the number of distinct data points in the distribution than no misses occur, which corresponds to smaller overhead in the protocol.  When the cache gets very small the number of misses becomes an appreciable fraction of the number of data encrypted.  For concreteness the sweep with cache size = 18, k=10 and the NOAA temperature dataset, approximately half (0.45) of the data encrypted led to a miss.  One way to understand such very bad behavior is to draw an analogy to the notion of thrashing relevant to virtual memory in operating systems.  At the very least the dOPE sensor cache needs room for k-1 values because k-ary B trees can have up to k-1 values at every node.  However a more reasonable requirement is for the sensor cache to contain room for at least k * d where d is the greatest expected depth of the tree.  Note that $d = log_2(n / k -1)$, where n is the number of possible distinct data points in your distribution.  For example if you were using a device that collects data in a range from -999.0 to 999.0 there are 2 * 10 * 10 * 10 * 10 - 1 = 19,999 data points and with k = 10, d ~ 11 and so the cache at the sensor should accommodate about 110 values.
+
+If this requirement is not held then eventually during the insert of a new value there will not be room for the entire path in the cache.  Using an lru eviction method the root and its immediate successors will be evicted to bring in the next member of the path.  Now even if the next datum to be encrypted with dOPE has the same value then the entire path will be evicted and brought in in turn assuming the lru rule.  This poses a clear indication that a stateful eviction scheme should be considered for data sets or devices that cannot accommodate  this requirement.  One sensible solution would be to evict the lowest element of the path already traversed in the case the path length has succeeded the cache size.  This makes sense 1) because there is a greater probability that these nodes will not be hit in the next traversal and 2) because in the case of a repeat node it reduces the total number of misses from the entire path length to the difference between the path length and the path length that can fit in the cache.
+
+
+\subsection{Profiling Prototype Latency}
+
+
+Here is sweep (woah I forgot about how thorough I was at looking into the details of the timing, including what kind of sizes we saw in miss messages and how time correlated hint perfectly)
+
+We see that dOPE is indeed feasible as expected.  During measurements of the time it takes for data to traverse dOPE we also see that the current implementation is quite slow.  Specifically during cache misses it takes up to 7 seconds for a miss to finish occurring.  Because the dOPE service blocks while misses are happening this seriously slows down data uptake into the system.
+
+There is also interesting structure in these plots that I would like to understand, especially the decreasing slope after every miss, why do the times go down, why do certain misses take longer to occur than others.  Some other questions that could be addressed, why are some peaks taller than others, can we correlate this to the number of messages that are sent over the air, I think I have that data somewhere, yes I do, including these plots now.
+
+Things to investigate: 
+
+1. what do the trees look like at the different points in the timing graph?  Do the times mesh up with what we see for the average miss time based on the number of elements in the tree?  Right now it looks a little bit longer than expected.  Are we taking hits from the gateway to the cloud that are of comparable size?  Why would this be?  I think this all makes sense with the time between the embedded device and the gateway being the major factor.  little root + 2 bigger secondary branches gives 3500.  As root gets bigger the whole thing starts to increase.  <-- current hypothesis
+
+2. Why the slanty lines?  To understand this better I want to look at the start and end times that lead to the slants.  My hypothesis right now is that this can all be explained by head of line blocking, though I am having a hard time understanding this without looking at both ends of the timing data.
+
+I think I need better confirmation that the wait time is all occurring between the embedded device and the gateway, and not between the gateway and the cloud.  I recall having trouble trying to get ntp server calls from the android device, but if i can do that then I can compare the android timestamp to the computer timestamp to get a measure of the time it takes a miss message to travel that leg of the journey, and I can say more definitively that the problem is the BLE service.
+
+(It would be nice to have more results, why dOPE, what are we measuring?, Time seems natural and it points out a glaring flaw in the implementation of the dOPE protocol which is a major contribution of the paper)  Is there anything else that we can do here so that we can measurably show dOPE's contribution?  Is there another contribution beyond speed up?  Lots of existential questions 
+
+Talk about how better engineering design could make this prototype more useful for an evaluation.
+
+
+
+\section{Conclusion}
+What we have so far, and 
+what we still need to do
+
+
+\end{document}
+
+
