@@ -10,21 +10,21 @@ logging.getLogger('').addHandler(console)
 
 
 def run(numTics, dataTics, networkTics, data_queue_len, distribution,
-        cacheS_len, cacheG_len,data_file):
+        cacheS_len, cacheG_len,data_file, num_data):
     # import here because we need to set up syspath prior importing
     from dope import mOPE_baseline
     #
     # # Run basline simulation
-    k = 10 # Talos value for k-ary tree branching
+    k = 6 # Talos value for k-ary tree branching
     mOPE_baseline(numTics, dataTics, networkTics, data_queue_len, k,
-                  distribution, data_file)
+                  distribution, data_file, num_data)
 
     from dope import dOPE_B as dOPE
     #from dope import dOPE_full as dOPE# To run with scapegoat tree
 
     # Run the current dOPE simulation (Naive cache model right now )
     dOPE(numTics, dataTics, networkTics, data_queue_len, cacheS_len, 
-         cacheG_len, distribution, k, data_file)
+         cacheG_len, distribution, k, data_file, num_data)
 
     
 
@@ -65,6 +65,7 @@ if __name__ == "__main__":
                         help = "Set the cache length of the dOPE gateway")
     parser.add_argument("-f", "--file", type=str,
                         help="File with NOAA data")
+    parser.add_argument("-dn", "--data_number", type=int)
     args = parser.parse_args()
 
     # Set default values of arguments not taken from the command line
@@ -87,8 +88,9 @@ if __name__ == "__main__":
     data_file = None
     distribution = args.distribution
     if distribution is None:
-        distribution = 'random'
-    elif distribution == 'NOAA_temp':
+        distribution = 'increasing'
+    
+    if distribution == 'NOAA_temp':
         data_file = args.file
         if data_file is None:
            # data_file = 'data_sets/CRNS0101-05-2015-CA_Santa_Barbara_11_W.txt'
@@ -98,11 +100,15 @@ if __name__ == "__main__":
 
     cacheLengthS = args.sensorcacheLength
     if cacheLengthS is None:
-        cacheLengthS = 100
+        cacheLengthS = 500
 
     cacheLengthG = args.gatewaycacheLength
     if cacheLengthG is None:
-        cacheLengthG = 100
+        cacheLengthG = 1000
+
+    data_number = args.data_number
+    if data_number is None:
+        data_number = 1000
 
     sys.exit(run(numTics, dataTics, networkTics, data_queue_len, distribution,
-                 cacheLengthS, cacheLengthG, data_file=data_file))
+                 cacheLengthS, cacheLengthG, data_file, data_number))

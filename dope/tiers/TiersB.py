@@ -34,10 +34,10 @@ class dSensor_B(Tier):
     are blocking and to send rebalance, insert, evict and sync messages
     as well as to receive insert response messages.
     '''
-    def __init__(self, data_queue_len, distribution, cache_len, out_file, k, data_file):
+    def __init__(self, data_queue_len, distribution, cache_len, out_file, k, data_file, num_data):
         super(dSensor_B,self).__init__('Sensor',Communicator())
-        self.data_gen = DataGenerator(distribution, bounds = [-1000,1000],
-                                      data_file = data_file)
+        self.data_gen = DataGenerator(distribution, bounds = [-500,500],
+                                      data_file = data_file, data_num = num_data)
         self.num_data_sent = 0
         self.num_gen = 0
         self.comp_req_queue = queue.Queue(1)
@@ -53,7 +53,6 @@ class dSensor_B(Tier):
         self.send_message_count = 0
         self.total_repeats_sent = 0
         self.avg_msg_size = []
-
 
 
     def generate_data(self):
@@ -109,7 +108,6 @@ class dSensor_B(Tier):
         self.insert_round_trips[-1] += 1
         if len(self.cache.priority_messages) > 0:
             message2send = self.cache.priority_messages.pop(0)
-            print(message2send.messageType)
             if isinstance(message2send.entry, CacheEntryB):
                 self.total_ciphers_sent += 1
             if message2send.messageType == 'rebalance' and message2send.start_flag:
@@ -122,6 +120,7 @@ class dSensor_B(Tier):
             message2send = self.cache.sync_messages.pop(0)
             if message2send.messageType == 'sync':
                 self.total_ciphers_sent += 1
+                self.cache.logger.debug("Trying to sync entry with encoding " + str(message2send.entry.node_encoding))
                 self.cache.acknowledge_sync(message2send.entry.node_encoding, 
                                             message2send.entry.node_index)
             else:

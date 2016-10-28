@@ -11,7 +11,9 @@ class DataGenerator(object):
     '''
 
     def __init__(self, distribution='NOAA_temp', data_file = None,
-                 bounds =[ -100, 100], datatype=int ):
+                 bounds =[ -100, 100], data_num = 1000, datatype=int ):
+        if data_num >0: # Valid data number
+            self.data_num = data_num
         self.distribution = distribution
         self.bounds = bounds
         self.data_type = datatype
@@ -27,7 +29,7 @@ class DataGenerator(object):
 
     @property
     def is_last(self):
-        return self.current == 100
+        return self.current == self.data_num
 
     def get_next(self):
         if self.distribution == 'random':

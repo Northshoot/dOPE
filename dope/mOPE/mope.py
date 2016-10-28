@@ -9,7 +9,7 @@ Functions defining mOPE simulation
 '''
 
 def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, k,
-                  distribution = 'random', data_file=None):
+                  distribution = 'random', data_file=None, num_data=1000):
 
     ts = str(time.asctime(time.localtime()))
     logfile = "mope_log"+ts+".log"
@@ -19,7 +19,7 @@ def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, k,
     logger.setLevel(logging.INFO)
 
     #initialization and linking of tiers
-    sensor = Sensor(data_queue_len, distribution, data_file)
+    sensor = Sensor(data_queue_len, distribution, data_file, num_data = num_data)
     gateway = Gateway()
     server = Server(k)
 

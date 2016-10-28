@@ -27,10 +27,10 @@ class Sensor(Tier):
     '''
     IoT Sensor Class
     '''
-    def __init__(self, data_queue_len, distribution, data_file=None):
+    def __init__(self, data_queue_len, distribution, data_file=None, num_data=1000):
         super(Sensor,self).__init__('Sensor',Communicator())
         print("mmope")
-        self.data_gen = DataGenerator(distribution, data_file)
+        self.data_gen = DataGenerator(distribution, data_file, bounds = [-500, 500], data_num = num_data)
         self.__sk = 0 # A dummy secret key that isn't used or properly initialized (yet)
         self.num_data_sent = 0
         self.ciphers_from_cloud = 0

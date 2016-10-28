@@ -39,3 +39,15 @@ Cache size          Inserts that Miss
 
 Is it possible to frame cache sizing as follows:
 x % of total data set size needed in sensor cache for misses to be under y% of total inserts
+
+How many of these are due to rebalances?  What data set are we looking at here (seq, random)?  What is the range of data, cache size for misses will really depend on the number of distinct values that we see in the data set.  (guess random -100 to 100 k = 10) wrong, pretty sure this was NOAA (due to the massive number of repeats in the raw data file)
+
+BIG QUESTION: why do steps of 5 see fewer misses?  I thought we couldn’t fit any more blocks in the tree because we can only fit complete blocks.  Wait I have an answer, I don’t think we require entire sections of 10 chopped off for a root with 3 elements in it.
+
+It will be good to normalize out all of the misses that would have occurred anyway so we can look more closely at which misses are the result of thrashing.  Well it is actually simple, because the dataset was the same the same exact tree transformations occurred and hence the same number of rebalance flushes occurred.  The only different is the miss count to get there.
+
+which means:
+
+     _ _ _ _ _ _ _ _ _ _
+
+			- - - - - - - - - -   <- in order to store this leaf we need to evict the root.  Then we start traversal with the root and in order to bring it in we need to evict the leaf, and so every single tree level traversed requires a cache miss

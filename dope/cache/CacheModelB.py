@@ -86,7 +86,7 @@ class CacheModel(object):
         self.logger = logging.getLogger(logfile)
         fh = logging.FileHandler(logfile)
         self.logger.addHandler(fh)
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG)
         self.outfile = logfile
 
         self.evict_count = 0
@@ -182,7 +182,6 @@ class CacheModel(object):
         '''
         self.rebal_count += 1
         entries_to_send = [x for x in self.cache if not x.synced]
-        print(len(entries_to_send))
         outgoing = []
         # Clear cache
         self.cache = []
@@ -218,7 +217,6 @@ class CacheModel(object):
         Request the next entry along the encoding path to complete
         the current insert
         '''
-        print("Handling miss of " + str(plaintext))
         self.plaintexts_who_miss.append(plaintext)
         self.logger.debug("Handling cache miss")
         if len(self.cache) == self.max_size:

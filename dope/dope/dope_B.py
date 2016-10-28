@@ -8,11 +8,12 @@ import matplotlib.pyplot as plt
 
 
 def dOPE_B(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
-           gate_cache_len, distribution = 'random', k = 5, data_file = None):
+           gate_cache_len, distribution = 'random', k = 10, data_file = None,
+           num_data=1000):
     print("dope")
     ts = str(time.asctime(time.localtime()))
     sensor = dSensor_B(data_queue_len, distribution, sensor_cache_len, 
-                     "dSensorCache" + ts +".log", k, data_file)
+                     "dSensorCache" + ts +".log", k, data_file, num_data)
     gateway = dGateway_B("dGatewayCache" + ts + ".log", gate_cache_len, k)
     server = dServer_B("dServerCache" + ts + ".log", k)
     sensor.link(gateway)
@@ -34,7 +35,7 @@ def dOPE_B(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
         if tic % dataTics == 0:
             sensor.generate_data()
             if sensor.done:
-                print(server.tree)
+                #print(server.tree)
                 n_miss_inserts = len(gateway.num_traversals)
                 avg_traversals = reduce(lambda a, x: [a[0]+x[0], a[1]+x[1]], gateway.num_traversals, [0,0])
                 avg_traversals[0] /= n_miss_inserts
@@ -56,7 +57,7 @@ def dOPE_B(maxTics, dataTics, networkTics, data_queue_len, sensor_cache_len,
                                    str(n_miss_inserts),
                                    str(round(avg_traversals[1] + avg_traversals[0],2)),
                                    str(round(avg_traversals[0],2)))
-
+                print(ret)
 
                 sensor.cache.logger.info(ret)
                 gateway.cache.logger.info(ret)
