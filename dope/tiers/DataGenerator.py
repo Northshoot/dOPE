@@ -48,7 +48,7 @@ class DataGenerator(object):
             if self.is_last:
                 return None
             else:
-                data = self.timeseries[self.current]
+                data = self.timeseries[self.current % len(self.timeseries)]
                 self.current += 1
             return data
         else:

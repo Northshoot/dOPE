@@ -5,6 +5,7 @@ import logging
 import pstats
 import profile
 from dope import dOPE_B as dOPE
+from vprof import runner as vprof_runner
 console = logging.StreamHandler()
 console.setLevel(logging.CRITICAL)
 formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
@@ -26,15 +27,9 @@ def run(numTics, dataTics, networkTics, data_queue_len, distribution,
     #from dope import dOPE_full as dOPE# To run with scapegoat tree
 
     # Run the current dOPE simulation 
-    profile.runctx('print(dOPE(numTics, dataTics, networkTics, data_queue_len, cacheS_len, cacheG_len, distribution, k, data_file, num_data, not verbose))',
-                None, locals(), "profile_stats.stats")
-    stats = pstats.Stats("profile_stats.stats")
-    stats.strip_dirs()
-    stats.sort_stats('cumulative')
-    stats.print_stats()
-
-
-    
+    vprof_runner.run(dOPE, 'cmhp', args=(numTics, dataTics, networkTics, data_queue_len, cacheS_len, cacheG_len, distribution, k, data_file, num_data, not verbose), host='localhost', port=8000)
+#    dOPE(numTics, dataTics, networkTics, data_queue_len, cacheS_len, cacheG_len, distribution, k, data_file, num_data, not verbose)
+      
 
 # def get_plot_data(numTics, dataTics, networkTics, data_queue_len, distribution):
 #     # import here because we need to set up syspath prior importing

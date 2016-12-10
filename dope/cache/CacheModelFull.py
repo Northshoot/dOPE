@@ -526,8 +526,8 @@ class CacheModel(object):
         if start_enc is not None:
             key = enc2string(start_enc)
             current_entry = self.cache_lookup[key]
-            self.logger.debug("Continuing insert starting at %d", 
-                             current_entry.cipher_text)
+            #self.logger.debug("Continuing insert starting at %d", 
+             #                current_entry.cipher_text)
             new_entry_encoding = self._enc_copy(start_enc)
         else:
             try:

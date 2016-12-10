@@ -12,7 +12,7 @@ def mOPE_baseline(maxTics, dataTics, networkTics, data_queue_len, k,
                   distribution = 'random', data_file=None, num_data=1000):
 
     ts = str(time.asctime(time.localtime()))
-    logfile = "mope_log"+ts+".log"
+    logfile = "mope_log_"+ts+".log"
     logger = logging.getLogger(logfile)
     fh = logging.FileHandler(logfile)
     logger.addHandler(fh)
