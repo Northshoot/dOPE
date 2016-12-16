@@ -1,0 +1,36 @@
+-----------------------------Data Inserted-----------------------------
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+***Total inserts = 1000000***
+***Total repeated syncs 999437***
+
+------------------------------Event Count-----------------------------
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+***Tree rebalances = 110***
+***Sensor evictions = 257***
+***Sensor flushes for rebalance = 92***
+
+-----------------------------Message Count----------------------------
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+|Embedded to Gateway | Gateway to Cloud|
+|--------------------|-----------------|
+|      1001543        |     1001299       |
+----------------------------------------
+|   Misses  |   Syncs   |  Rebalances   |
+|-----------|-----------|---------------|
+|   1451    |      472   |     184       |
+
+----------------Ciphertexts sent, proxy for bytes sent----------------
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+| Number of ciphertexts sent by the sensor: 564
+| Number of ciphertexts sent back to the sensor: 7187
+| Average ciphertexts per message sent back to sensor: 4.95
+
+-------------------------Round Trip Breakdown-----------------------
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Number of inserts requiring traversal: 1092
+| Average RTs to gateway  | Average RTs to cloud  |
+--------------------------------------------------------
+|           1.33           |   1.11    |
+
+Gcache = 1000
+Scache = 500

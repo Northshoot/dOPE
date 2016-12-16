@@ -153,8 +153,12 @@ class dSensor_B(Tier):
             node = packet.data[0]
             self.total_ciphers_received += len(node)
             self.avg_msg_size.append(len(node))
+            #print("This is the new node being added:")
             for entry in node:
                 entry.lru = self.cache.lru_tag
+                #print(entry)
+            #print("Start enc: " + str(encoding))
+            #print("----------------------------")
             self.cache.lru_tag += 1
             #self.cache.logger.debug("Merging entries:\n " + str(node))
             self.cache.merge(node)
@@ -249,6 +253,10 @@ class dGateway_B(Tier):
             start_flag = packet.data[1]
             end_flag = packet.data[2]
             send_entry = copy.deepcopy(entry)
+            # SEND_ENTRY = CacheEntryB(entry.cipher_text, entry.node_encoding,
+            #                          entry.node_index, entry.lru)
+            # SEND_ENTRY.is_leaf = entry.is_leaf
+            # SEND_ENTRY.synced = entry.synced
 
             if packet.call_type == 'insert':
                 if not self.ongoing_traversal:
@@ -357,7 +365,15 @@ class dGateway_B(Tier):
             raise ValueError("Higher tiers only send insert Responses")
         else:
             node = packet.data
-            send_entry = copy.deepcopy(node)
+            #send_entry = copy.deepcopy(node)
+            send_entry = []
+            for entry in node:
+                copy_entry = CacheEntryB(entry.cipher_text, entry.node_encoding[:],
+                                         entry.node_index, entry.lru)
+                copy_entry.is_leaf = entry.is_leaf
+                copy_entry.synced = entry.synced
+                send_entry.append(copy_entry)
+
             if (len(self.cache.cache) < self.cache.max_size):
                 # If gateway has room, cache value
                 #self.cache.logger.debug("Merging entry:\n " + str(node))
@@ -403,7 +419,7 @@ class dServer_B(Tier):
         node = self.tree.node_at_enc(encoding)
         if node is None:
             raise (ValueError("Server should have record of every cipher"))
-        entries2send = [CacheEntryB(key, encoding, i, 0) for i, key in
+        entries2send = [CacheEntryB(key, encoding[:], i, 0) for i, key in
                         enumerate(node.keys)]
         for entry in entries2send:
             #self.cache.logger.debug(str(entry))

@@ -92,12 +92,12 @@ if __name__ == "__main__":
 
     data_queue_len = args.data_queue_len
     if data_queue_len is None:
-        data_queue_len = 10000000
+        data_queue_len = 100000000
 
     data_file = None
     distribution = args.distribution
     if distribution is None:
-        distribution = 'increasing'
+        distribution = 'random'
     
     if distribution == 'NOAA_temp':
         data_file = args.file
@@ -113,11 +113,11 @@ if __name__ == "__main__":
 
     cacheLengthG = args.gatewaycacheLength
     if cacheLengthG is None:
-        cacheLengthG = 10000000
+        cacheLengthG = 1000
 
     data_number = args.data_number
     if data_number is None:
-        data_number = 100000
+        data_number = 1000000
 
     sys.exit(run(numTics, dataTics, networkTics, data_queue_len, distribution,
                  cacheLengthS, cacheLengthG, data_file, data_number, args.v))

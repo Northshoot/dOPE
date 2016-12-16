@@ -163,7 +163,7 @@ class CacheModel(object):
         #        sorted_zero_nodes[0].node_encoding]
         node = self.cache_lookup[enc2string(sorted_zero_nodes[0].node_encoding)].values()
         #assert(sorted(node) == sorted(NODE))
-        self.cache_lookup[enc2string(sorted_zero_nodes[0].node_encoding)] = {}
+        del self.cache_lookup[enc2string(sorted_zero_nodes[0].node_encoding)]
         self.cache = [x for x in self.cache if not x in node] # This can be sped up
         for entry in node:
             self.logger.debug("Evicting " + str(entry.cipher_text))
@@ -369,6 +369,11 @@ class CacheModel(object):
             current_node_start = self._entry_with_encoding([], 0)
 
         # Traverse the tree encoded in the cache table
+        if current_node_start is None:
+            print("\nThis is the cache state upon error")
+            print(self)
+            raise("Start node not in the cache")
+
         while not current_node_start.is_leaf:
             # Traverse the current node and find the index of the next insert
             next_child = self.traverse_node(current_node_start, new_plaintext)
@@ -473,13 +478,21 @@ class CacheModel(object):
         '''
         #node = [ entry for entry in self.cache if entry.node_encoding == encoding]
         try:
-            node = self.cache_lookup[enc2string(encoding)].values()
+            node = list(self.cache_lookup[enc2string(encoding)].values())[:]
         except KeyError:
             node = []
         #assert(sorted(node) == sorted(NODE))
         if node == []:
             self.logger.error("encoding: " + str(encoding) + " not found")
             return None
+        # send = []
+        # for entry in node:
+        #     new_entry = CacheEntryB(entry.cipher_text, entry.node_encoding[:],
+        #             entry.node_index, entry.lru)
+        #     new_entry.synced = True
+        #     new_entry.is_leaf = entry.is_leaf
+        #     send.append(new_entry)
+
         send = copy.deepcopy(node)
         for entry in send:
             assert(entry not in node)
@@ -489,6 +502,7 @@ class CacheModel(object):
         return OutgoingMessageB(messageTypeB[0], send)
 
 
+#    def __init__(self, ciphertext_data, node_encoding, node_index, lru_tag):
 
 
 

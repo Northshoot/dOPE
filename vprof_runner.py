@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
     data_number = args.data_number
     if data_number is None:
-        data_number = 100000
+        data_number = 1000000
 
     sys.exit(run(numTics, dataTics, networkTics, data_queue_len, distribution,
                  cacheLengthS, cacheLengthG, data_file, data_number, args.v))
